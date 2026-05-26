@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FormArreda</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a1a1a;min-height:100vh}
+:root{
+  --ac:#1D9E75;--ac-l:#E1F5EE;--ac-d:#085041;
+  --dng:#E24B4A;--dng-l:#FCEBEB;
+  --wrn:#BA7517;--wrn-l:#FAEEDA;
+  --info:#185FA5;--info-l:#E6F1FB;
+  --cb:#fff;--br:rgba(0,0,0,0.12);--tx:#1a1a1a;--mu:#666;--sf:#f4f4f0
+}
+.app{max-width:980px;margin:0 auto;padding:1.25rem}
+.screen{display:none}.screen.active{display:block}
+.logo{text-align:center;margin-bottom:1.75rem}
+.logo h1{font-size:28px;font-weight:600;color:var(--ac-d);letter-spacing:-.5px}
+.logo h1 i{color:var(--ac);margin-right:6px}
+.logo p{font-size:13px;color:var(--mu);margin-top:4px}
+.card{background:var(--cb);border:1px solid var(--br);border-radius:12px;padding:1.5rem;margin-bottom:1rem}
+.ch{display:flex;align-items:center;gap:10px;margin-bottom:1.1rem;padding-bottom:.875rem;border-bottom:1px solid var(--br)}
+.ch h2{font-size:15px;font-weight:600}.ch i{font-size:20px;color:var(--ac)}
+.field{margin-bottom:1rem}
+.field label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;border:1px solid var(--br);border-radius:8px;padding:9px 12px;font-size:14px;background:var(--cb);color:var(--tx);font-family:inherit;transition:border-color .15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px rgba(29,158,117,.12)}
+.field textarea{min-height:80px;resize:vertical}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--br);background:transparent;color:var(--tx);transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--sf)}.btn.pr{background:var(--ac);color:#fff;border-color:var(--ac)}
+.btn.pr:hover{background:var(--ac-d);border-color:var(--ac-d)}
+.btn.dn{background:var(--dng);color:#fff;border-color:var(--dng)}
+.btn.sm{padding:6px 12px;font-size:13px}.btn i{font-size:16px}.btn:disabled{opacity:.5;cursor:default}
+.tabs{display:flex;gap:4px;background:#ebebeb;padding:4px;border-radius:10px;margin-bottom:1.1rem}
+.tab{flex:1;padding:8px 12px;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer;text-align:center;color:var(--mu);border:none;background:none;transition:all .15s;font-family:inherit}
+.tab.active{background:var(--cb);color:var(--tx);box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--cb);border:1px solid var(--br);border-radius:12px;padding:.875rem 1.25rem;margin-bottom:1rem}
+.pbar{background:#e0e0e0;border-radius:99px;height:6px;margin-bottom:1.25rem;overflow:hidden}
+.pfill{height:100%;background:var(--ac);border-radius:99px;transition:width .4s ease}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600}
+.bg-g{background:var(--ac-l);color:var(--ac-d)}.bg-b{background:var(--info-l);color:var(--info)}.bg-a{background:var(--wrn-l);color:#633806}
+.opt-btn{display:flex;align-items:center;gap:12px;padding:13px 16px;border:1px solid var(--br);border-radius:9px;cursor:pointer;background:var(--cb);color:var(--tx);text-align:left;font-size:14px;transition:all .15s;width:100%;font-family:inherit}
+.opt-btn:hover:not(:disabled){border-color:var(--ac);background:var(--ac-l)}
+.opt-btn.correct{background:#EAF3DE;border-color:#639922;color:#27500A}
+.opt-btn.wrong{background:var(--dng-l);border-color:var(--dng);color:#501313}
+.opt-btn:disabled{cursor:default}
+.oltr{width:30px;height:30px;border-radius:50%;background:var(--sf);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0}
+.tring{position:relative;width:58px;height:58px;flex-shrink:0}
+.tring svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:#e0e0e0;stroke-width:5}
+.ring-fill{fill:none;stroke:var(--ac);stroke-width:5;stroke-linecap:round;stroke-dasharray:138;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear,stroke .3s}
+.tring.warn .ring-fill{stroke:var(--wrn)}.tring.dng .ring-fill{stroke:var(--dng)}
+.tnum{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.metric{background:var(--sf);border-radius:10px;padding:1rem;text-align:center}
+.mv{font-size:28px;font-weight:700;color:var(--ac)}.ml{font-size:11px;color:var(--mu);margin-top:3px}
+.rmg{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1.5rem}
+.slide-viewer{background:#1a1a1a;border-radius:12px;overflow:hidden;margin-bottom:1rem;position:relative}
+.slide-viewer img{width:100%;max-height:520px;object-fit:contain;display:block}
+.slide-nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--cb);border:1px solid var(--br);border-radius:10px;margin-bottom:1rem}
+.slide-dots{display:flex;gap:7px;align-items:center}
+.slide-dot{width:8px;height:8px;border-radius:50%;background:#ddd;cursor:pointer;transition:background .2s,transform .2s;border:none;padding:0}
+.slide-dot.active{background:var(--ac);transform:scale(1.3)}
+.mod-card{border:1px solid var(--br);border-radius:10px;padding:1.1rem;margin-bottom:.875rem;background:var(--sf)}
+.mod-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.mod-lbl{background:var(--ac-l);color:var(--ac-d);padding:4px 12px;border-radius:99px;font-size:12px;font-weight:600}
+.img-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.simg-thumb{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--br);background:#1a1a1a;aspect-ratio:16/9}
+.simg-thumb img{width:100%;height:100%;object-fit:contain}
+.rm-simg{position:absolute;top:5px;right:5px;background:rgba(226,75,74,.9);color:#fff;border:none;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+.simg-n{position:absolute;bottom:4px;left:6px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px}
+.add-img{aspect-ratio:16/9;border:2px dashed var(--br);border-radius:8px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;cursor:pointer;color:var(--mu);font-size:12px;background:var(--cb);transition:border-color .15s}
+.add-img:hover{border-color:var(--ac);color:var(--ac)}.add-img i{font-size:22px}
+.qblock{background:var(--cb);border:1px solid var(--br);border-radius:9px;padding:1rem;margin-bottom:.75rem}
+.qblock-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.qblock-lbl{font-size:12px;font-weight:600;color:var(--info);background:var(--info-l);padding:3px 10px;border-radius:99px}
+.qoptrow{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.qoptrow input[type=text]{flex:1}
+.fb{margin-top:1rem;padding:10px 14px;border-radius:9px;font-size:14px;border:1px solid}
+.rank-table{width:100%;border-collapse:collapse;font-size:14px}
+.rank-table th{text-align:left;font-size:11px;font-weight:600;color:var(--mu);padding:7px 9px;border-bottom:1px solid var(--br);text-transform:uppercase;letter-spacing:.4px}
+.rank-table td{padding:11px 9px;border-bottom:1px solid var(--br);vertical-align:middle}
+.rank-table tr:last-child td{border-bottom:none}
+.rank-table tbody tr:hover td{background:var(--sf)}
+.medal{width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.m1{background:#FAEEDA;color:#633806}.m2{background:#F1EFE8;color:#444441}.m3{background:#FAECE7;color:#712B13}
+.store-tag{background:var(--sf);border:1px solid var(--br);border-radius:99px;padding:5px 13px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.store-tag button{background:none;border:none;cursor:pointer;color:var(--mu);font-size:16px;line-height:1;padding:0}
+.store-tag button:hover{color:var(--dng)}
+.stores-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.gtimer{font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px}
+.gtimer.urg{color:var(--dng);font-weight:600}
+.admin-notice{background:var(--ac-l);border:1px solid #9FE1CB;border-radius:9px;padding:10px 14px;font-size:13px;color:var(--ac-d);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
+.lcode-tag{background:var(--ac-l);color:var(--ac-d);font-size:13px;font-weight:700;padding:5px 14px;border-radius:8px;letter-spacing:1px;display:inline-block}
+.flex{display:flex}.gap2{gap:8px}.gap3{gap:14px}.jb{justify-content:space-between}.ac{align-items:center}
+.mt1{margin-top:.5rem}.mt2{margin-top:1rem}.mt3{margin-top:1.5rem}
+.mu{color:var(--mu)}.sm-tx{font-size:13px}.f600{font-weight:600}.wf{width:100%}
+@media(max-width:600px){.app{padding:.75rem}.tabs{flex-wrap:wrap}.tab{flex:none;width:calc(50% - 2px)}.rmg{grid-template-columns:1fr 1fr}.img-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- LOGIN -->
+<div class="screen active" id="sc-login">
+  <div style="max-width:420px;margin:0 auto;padding-top:2rem">
+    <div class="logo">
+      <h1><i class="ti ti-sofa"></i>FormArreda</h1>
+      <p>Piattaforma di formazione per arredatori</p>
+    </div>
+    <div class="card">
+      <div class="ch"><i class="ti ti-login"></i><h2>Accesso studente</h2></div>
+      <div class="field">
+        <label>Nome e cognome</label>
+        <input type="text" id="ln" placeholder="es. Mario Rossi" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Store di riferimento</label>
+        <select id="ls"><option value="">— Seleziona lo store —</option></select>
+      </div>
+      <div class="field">
+        <label>Codice lezione</label>
+        <input type="text" id="lc" placeholder="es. ARR-001" style="text-transform:uppercase" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
+      </div>
+      <div id="lerr" style="color:var(--dng);font-size:13px;display:none;margin-bottom:.875rem;padding:8px 12px;background:var(--dng-l);border-radius:7px;border:1px solid var(--dng)"></div>
+      <button class="btn pr wf" onclick="doLogin()"><i class="ti ti-arrow-right"></i> Inizia lezione</button>
+    </div>
+
+    <!-- LEZIONI DISPONIBILI -->
+    <div id="login-lessons-box" style="display:none" class="card">
+      <div class="ch"><i class="ti ti-book"></i><h2>Lezioni disponibili</h2></div>
+      <div id="login-lessons-list"></div>
+    </div>
+
+    <div style="text-align:center;margin-top:1rem">
+      <button class="btn sm" onclick="goAdmin()"><i class="ti ti-settings"></i> Accesso formatore</button>
+    </div>
+    <div style="text-align:center;margin-top:.75rem;font-size:12px;color:var(--mu)">
+      Demo disponibile — codice: <strong>DEMO-001</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="screen" id="sc-admin">
+  <div class="logo"><h1><i class="ti ti-sofa"></i>FormArreda</h1><p>Pannello formatore</p></div>
+  <div class="tabs">
+    <button class="tab active" id="tab-lessons" onclick="aTab('lessons')"><i class="ti ti-book"></i> Lezioni</button>
+    <button class="tab" id="tab-stores" onclick="aTab('stores')"><i class="ti ti-building-store"></i> Store</button>
+    <button class="tab" id="tab-results" onclick="aTab('results')"><i class="ti ti-chart-bar"></i> Risultati</button>
+    <button class="tab" id="tab-rank" onclick="aTab('rank')"><i class="ti ti-trophy"></i> Classifica</button>
+  </div>
+
+  <!-- LESSONS TAB -->
+  <div id="ap-lessons">
+    <div class="admin-notice"><i class="ti ti-info-circle"></i>
+      <span>Carica le <strong>slide PowerPoint</strong> come immagini, aggiungi le domande e salva. Poi dai il codice agli alunni.</span>
+    </div>
+
+    <!-- LEZIONI SALVATE -->
+    <div class="card" id="saved-lessons-card">
+      <div class="ch"><i class="ti ti-list"></i><h2>Lezioni salvate</h2></div>
+      <div id="saved-lessons-list"><div class="mu sm-tx">Nessuna lezione ancora.</div></div>
+    </div>
+
+    <!-- FORM NUOVA LEZIONE -->
+    <div class="card">
+      <div class="ch"><i class="ti ti-book-2"></i><h2>Crea lezione</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:.875rem">
+        <div class="field" style="margin:0"><label>Titolo lezione</label>
+          <input type="text" id="ltitle" placeholder="es. I 6 Tipi di Clienti">
+        </div>
+        <div class="field" style="margin:0"><label>Codice (auto-generato)</label>
+          <input type="text" id="lcode" readonly style="background:var(--sf);font-weight:700;color:var(--ac-d);font-size:16px;letter-spacing:1px">
+        </div>
+        <div class="field" style="margin:0"><label>Durata max (minuti)</label>
+          <input type="number" id="ldur" value="60" min="5" max="300">
+        </div>
+      </div>
+      <div class="field">
+        <label>Secondi per risposta</label>
+        <div class="flex gap2 ac">
+          <input type="range" id="qsec" min="5" max="60" value="20" step="1" style="flex:1" oninput="document.getElementById('qsecv').textContent=this.value">
+          <span id="qsecv" style="font-size:14px;font-weight:600;min-width:28px;color:var(--ac-d)">20</span>
+          <span class="mu sm-tx">sec</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Numero di moduli</label>
+        <div class="flex gap2 ac">
+          <input type="range" id="nsl" min="1" max="10" value="1" step="1" style="flex:1" oninput="updateModules(this.value)">
+          <span id="nslv" style="font-size:14px;font-weight:600;min-width:24px;color:var(--ac-d)">1</span>
+          <span class="mu sm-tx">moduli</span>
+        </div>
+      </div>
+    </div>
+    <div id="mod-builder"></div>
+    <div class="flex gap2 jb mt2">
+      <button class="btn" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+      <button class="btn pr" onclick="saveLesson()"><i class="ti ti-device-floppy"></i> Salva lezione</button>
+    </div>
+  </div>
+
+  <!-- STORES TAB -->
+  <div id="ap-stores" style="display:none">
+    <div class="card">
+      <div class="ch"><i class="ti ti-building-store"></i><h2>Gestione store</h2></div>
+      <div class="field"><label>Nome store</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="text" id="nsi" placeholder="es. Roma Centro" onkeydown="if(event.key==='Enter')addStore()" style="flex:1">
+          <button class="btn pr" onclick="addStore()" style="white-space:nowrap"><i class="ti ti-plus"></i> Aggiungi</button>
+        </div>
+      </div>
+      <div class="stores-wrap" id="stores-list"></div>
+    </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div id="ap-results" style="display:none">
+    <div class="card">
+      <div class="ch"><i class="ti ti-chart-bar"></i><h2>Risultati sessioni</h2>
+        <button class="btn sm pr" style="margin-left:auto" onclick="exportAllPDF()"><i class="ti ti-file-export"></i> Esporta tutti</button>
+      </div>
+      <div id="res-list"><div class="mu sm-tx">Nessun risultato ancora.</div></div>
+    </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+
+  <!-- RANK TAB -->
+  <div id="ap-rank" style="display:none">
+    <div class="card">
+      <div class="ch"><i class="ti ti-trophy"></i><h2>Classifica</h2>
+        <div style="margin-left:auto">
+          <select id="rank-filter" onchange="renderRank()" style="border:1px solid var(--br);border-radius:8px;padding:6px 10px;font-size:13px;background:var(--cb);color:var(--tx);font-family:inherit">
+            <option value="">Tutti gli store</option>
+          </select>
+        </div>
+      </div>
+      <div id="rank-body"><div class="mu sm-tx">Nessun dato ancora.</div></div>
+    </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+</div>
+
+<!-- LESSON -->
+<div class="screen" id="sc-lesson">
+  <div class="topbar">
+    <div>
+      <div style="font-size:15px;font-weight:600" id="tb-title"></div>
+      <div style="font-size:12px;color:var(--mu);margin-top:2px"><span id="tb-user"></span> · <span id="tb-store"></span></div>
+    </div>
+    <div class="flex ac gap3">
+      <div class="gtimer" id="gtimer-el"><i class="ti ti-clock"></i><span id="gtimer-v" style="font-weight:600"></span></div>
+      <div style="font-size:12px;color:var(--mu)">Modulo <strong id="tb-mod"></strong></div>
+    </div>
+  </div>
+  <div class="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
+
+  <!-- SLIDE VIEWER -->
+  <div id="lp" style="display:none">
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:10px">
+        <span class="badge bg-g"><i class="ti ti-presentation" style="font-size:11px"></i> Slide</span>
+        <span id="lp-num" class="badge bg-b"></span>
+        <span class="mu sm-tx" style="margin-left:auto">Studia le slide poi rispondi</span>
+      </div>
+      <div class="slide-viewer"><img id="sv-img" src="" alt="Slide"></div>
+      <div style="padding:0 1rem 1rem">
+        <div class="slide-nav">
+          <button class="btn sm" id="sv-prev" onclick="slideNav(-1)"><i class="ti ti-chevron-left"></i> Prec.</button>
+          <div style="text-align:center">
+            <div class="slide-dots" id="sv-dots" style="justify-content:center"></div>
+            <div style="font-size:11px;color:var(--mu);margin-top:5px" id="sv-counter"></div>
+          </div>
+          <button class="btn sm" id="sv-next" onclick="slideNav(1)">Succ. <i class="ti ti-chevron-right"></i></button>
+        </div>
+      </div>
+    </div>
+    <div class="flex jb mt2">
+      <div></div>
+      <button class="btn pr" onclick="startQuiz()">Vai alle domande <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="qp" style="display:none">
+    <div class="card">
+      <div class="flex gap2 ac" style="margin-bottom:1rem">
+        <span class="badge bg-a"><i class="ti ti-help-circle" style="font-size:11px"></i> Domanda</span>
+        <span id="qp-num" class="badge bg-b"></span>
+      </div>
+      <div class="flex ac gap3" style="margin-bottom:1.25rem">
+        <div class="tring" id="tring">
+          <svg width="58" height="58" viewBox="0 0 58 58">
+            <circle class="ring-bg" cx="29" cy="29" r="22"/>
+            <circle class="ring-fill" id="rfill" cx="29" cy="29" r="22"/>
+          </svg>
+          <div class="tnum" id="tnum">20</div>
+        </div>
+        <div id="q-text" style="font-size:16px;font-weight:600;flex:1;line-height:1.5"></div>
+      </div>
+      <div id="q-opts" style="display:flex;flex-direction:column;gap:9px"></div>
+      <div id="q-fb" style="display:none" class="fb"></div>
+    </div>
+    <div id="slide-reminder" style="display:none;margin-bottom:1rem">
+      <div style="font-size:12px;color:var(--mu);margin-bottom:6px;font-weight:500"><i class="ti ti-photo"></i> Rivedi le slide</div>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px" id="slide-thumbs-row"></div>
+    </div>
+    <div class="flex jb mt2" id="q-next-row" style="display:none">
+      <div></div>
+      <button class="btn pr" id="q-next-btn" onclick="nextQuestion()">Avanti <i class="ti ti-arrow-right"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS -->
+<div class="screen" id="sc-results">
+  <div class="logo">
+    <h1 style="color:var(--ac)"><i class="ti ti-trophy"></i> Completato!</h1>
+    <p id="rs-sub"></p>
+  </div>
+  <div class="card">
+    <div class="rmg" id="rs-metrics"></div>
+    <div id="rs-detail"></div>
+    <div class="flex gap2 mt3">
+      <button class="btn pr" onclick="exportMyPDF()"><i class="ti ti-file-export"></i> Scarica PDF</button>
+    </div>
+  </div>
+  <div class="flex gap2 jb mt2">
+    <button class="btn" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Nuova sessione</button>
+    <button class="btn pr" onclick="goAdmin()"><i class="ti ti-settings"></i> Pannello formatore</button>
+  </div>
+</div>
+
+</div>
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var lessons = {};
+var results = [];
+var stores = ['Milano Nord','Roma Centro','Torino Est','Firenze','Napoli'];
+var _md = {};  // module builder data: _md[moduleIndex] = {imgs:[], questions:[]}
+
+var S = {
+  lesson:null, user:{name:'',store:''},
+  curMod:0, curQ:0, allAnswers:[],
+  gInt:null, gSec:0, qInt:null, qSec:0,
+  answered:false, curSlide:0
+};
+
+// ─── PERSIST ──────────────────────────────────────────────────────────────────
+function persist() {
+  try {
+    // Store lessons WITHOUT images (just metadata) to avoid quota issues
+    var meta = {};
+    Object.keys(lessons).forEach(function(code) {
+      var l = lessons[code];
+      meta[code] = {
+        title:l.title, code:l.code, dur:l.dur, qsec:l.qsec,
+        modules: l.modules.map(function(m){ return { questions: m.questions, imgCount: m.imgs.length }; })
+      };
+    });
+    localStorage.setItem('fa_meta', JSON.stringify(meta));
+    // Store full lessons (with images) in sessionStorage for this session
+    sessionStorage.setItem('fa_lessons', JSON.stringify(lessons));
+  } catch(e) {}
+}
+
+function hydrate() {
+  // Try sessionStorage first (has images, same session)
+  try {
+    var ss = sessionStorage.getItem('fa_lessons');
+    if (ss) { lessons = JSON.parse(ss); return; }
+  } catch(e) {}
+  // Fall back to localStorage metadata (no images, but lesson exists)
+  try {
+    var ls = localStorage.getItem('fa_meta');
+    if (ls) {
+      var meta = JSON.parse(ls);
+      Object.keys(meta).forEach(function(code) {
+        var m = meta[code];
+        lessons[code] = {
+          title:m.title, code:m.code, dur:m.dur, qsec:m.qsec,
+          modules: m.modules.map(function(mod){ return { imgs:[], questions: mod.questions }; })
+        };
+      });
+    }
+  } catch(e) {}
+}
+
+// ─── NAV ──────────────────────────────────────────────────────────────────────
+function show(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+  document.getElementById('sc-'+id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function goLogin(){
+  populateSel();
+  renderLoginLessons();
+  show('login');
+}
+
+function goAdmin(){
+  show('admin');
+  renderModBuilder();
+  renderStoresList();
+  renderSavedLessons();
+  renderResults();
+  renderRank();
+  renderRankFilter();
+  document.getElementById('lcode').value = genCode();
+}
+
+function aTab(t){
+  ['lessons','stores','results','rank'].forEach(function(x){
+    document.getElementById('ap-'+x).style.display = x===t?'block':'none';
+    document.getElementById('tab-'+x).classList.toggle('active',x===t);
+  });
+  if(t==='results') renderResults();
+  if(t==='rank'){renderRankFilter();renderRank();}
+}
+
+// ─── UTILS ────────────────────────────────────────────────────────────────────
+function genCode(){ return 'ARR-'+String(Math.floor(Math.random()*999)+1).padStart(3,'0'); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── STORES ───────────────────────────────────────────────────────────────────
+function populateSel(){
+  var s=document.getElementById('ls');
+  s.innerHTML='<option value="">— Seleziona lo store —</option>';
+  stores.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;s.appendChild(o);});
+}
+function addStore(){
+  var inp=document.getElementById('nsi'),val=inp.value.trim();
+  if(!val){alert('Inserisci nome store.');return;}
+  if(stores.includes(val)){alert('Store già esistente.');return;}
+  stores.push(val);inp.value='';renderStoresList();renderRankFilter();populateSel();
+}
+function removeStoreByIdx(i){stores.splice(i,1);renderStoresList();renderRankFilter();populateSel();}
+function renderStoresList(){
+  document.getElementById('stores-list').innerHTML=stores.map(function(s,i){
+    return '<div class="store-tag">'+s+'<button onclick="removeStoreByIdx('+i+')">&times;</button></div>';
+  }).join('');
+}
+
+// ─── SAVED LESSONS LIST ───────────────────────────────────────────────────────
+function renderSavedLessons(){
+  var el=document.getElementById('saved-lessons-list');
+  var codes=Object.keys(lessons).filter(function(c){return c!=='DEMO-001';});
+  if(!codes.length){el.innerHTML='<div class="mu sm-tx">Nessuna lezione salvata.</div>';return;}
+  el.innerHTML=codes.map(function(code){
+    var l=lessons[code];
+    var nq=l.modules.reduce(function(a,m){return a+m.questions.length;},0);
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--br);font-size:13px">'
+      +'<div><div class="f600">'+esc(l.title)+'</div>'
+      +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+l.dur+' min</div></div>'
+      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<div class="lcode-tag">'+code+'</div>'
+      +'<button class="btn sm" onclick="startAsStudent(\''+code+'\')" style="background:var(--info);color:#fff;border-color:var(--info)"><i class="ti ti-player-play"></i> Avvia</button>'
+      +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function renderLoginLessons(){
+  var codes=Object.keys(lessons).filter(function(c){return c!=='DEMO-001';});
+  var box=document.getElementById('login-lessons-box');
+  var list=document.getElementById('login-lessons-list');
+  if(!codes.length){box.style.display='none';return;}
+  box.style.display='block';
+  list.innerHTML=codes.map(function(code){
+    var l=lessons[code];
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--br);font-size:13px">'
+      +'<div class="f600">'+esc(l.title)+'</div>'
+      +'<div class="lcode-tag" style="cursor:pointer" onclick="document.getElementById(\'lc\').value=\''+code+'\'">'
+      +code+'</div></div>';
+  }).join('');
+}
+
+function deleteLesson(code){
+  if(!confirm('Eliminare "'+lessons[code].title+'" ('+code+')?')) return;
+  delete lessons[code];persist();renderSavedLessons();
+}
+
+function startAsStudent(code){
+  // Go directly to login screen with the code pre-filled
+  goLogin();
+  document.getElementById('lc').value=code;
+}
+
+// ─── MODULE BUILDER ───────────────────────────────────────────────────────────
+function updateModules(n){
+  document.getElementById('nslv').textContent=n;
+  renderModBuilder();
+}
+
+function renderModBuilder(){
+  var n=parseInt(document.getElementById('nsl').value);
+  var h='';
+  for(var i=0;i<n;i++){
+    if(!_md[i]) _md[i]={imgs:[],questions:[]};
+    h+='<div class="mod-card">'
+      +'<div class="mod-hd"><span class="mod-lbl"><i class="ti ti-layout-cards" style="font-size:12px"></i> Modulo '+(i+1)+'</span>'
+      +'<span class="mu sm-tx">Slide PowerPoint + Domande</span></div>'
+      +'<div style="border-bottom:1px solid var(--br);padding-bottom:1rem;margin-bottom:1rem">'
+      +'<div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:.5rem"><i class="ti ti-photo"></i> SLIDE</div>'
+      +'<div class="img-grid" id="ig-'+i+'"></div>'
+      +'<input type="file" id="fi-'+i+'" accept="image/*" multiple style="display:none" onchange="handleImgs('+i+',this)">'
+      +'<button class="btn sm" onclick="document.getElementById(\'fi-'+i+'\').click()"><i class="ti ti-photo-plus"></i> Aggiungi slide</button>'
+      +'<div class="mu sm-tx mt1">Carica screenshot del PowerPoint. Lo studente le vedrà in sequenza.</div>'
+      +'</div>'
+      +'<div>'
+      +'<div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:.5rem"><i class="ti ti-help-circle"></i> DOMANDE</div>'
+      +'<div id="ql-'+i+'"></div>'
+      +'<button class="btn sm" onclick="addQ('+i+')"><i class="ti ti-plus"></i> Aggiungi domanda</button>'
+      +'</div></div>';
+  }
+  document.getElementById('mod-builder').innerHTML=h;
+  for(var j=0;j<n;j++){
+    renderImgGrid(j);
+    if(_md[j].questions.length===0) addQ(j);
+    else renderQList(j);
+  }
+}
+
+// ─── IMAGES ───────────────────────────────────────────────────────────────────
+function handleImgs(mi,inp){
+  var files=Array.from(inp.files);if(!files.length)return;
+  var loaded=0;
+  files.forEach(function(f){
+    var r=new FileReader();
+    r.onload=function(e){_md[mi].imgs.push(e.target.result);loaded++;if(loaded===files.length)renderImgGrid(mi);};
+    r.readAsDataURL(f);
+  });
+  inp.value='';
+}
+function rmImg(mi,idx){_md[mi].imgs.splice(idx,1);renderImgGrid(mi);}
+function renderImgGrid(mi){
+  var imgs=_md[mi].imgs,h='';
+  imgs.forEach(function(src,idx){
+    h+='<div class="simg-thumb"><img src="'+src+'" alt="S'+(idx+1)+'">'
+      +'<span class="simg-n">'+(idx+1)+'</span>'
+      +'<button class="rm-simg" onclick="rmImg('+mi+','+idx+')">&times;</button></div>';
+  });
+  h+='<div class="add-img" onclick="document.getElementById(\'fi-'+mi+'\').click()">'
+    +'<i class="ti ti-photo-plus"></i><span>Aggiungi</span></div>';
+  document.getElementById('ig-'+mi).innerHTML=h;
+}
+
+// ─── QUESTIONS ────────────────────────────────────────────────────────────────
+function addQ(mi){_md[mi].questions.push({q:'',type:'mc',opts:['','','',''],correct:0});renderQList(mi);}
+function removeQ(mi,qi){
+  if(_md[mi].questions.length<=1){alert('Almeno una domanda richiesta.');return;}
+  _md[mi].questions.splice(qi,1);renderQList(mi);
+}
+function renderQList(mi){
+  var qs=_md[mi].questions,h='';
+  qs.forEach(function(q,qi){
+    h+='<div class="qblock"><div class="qblock-hd">'
+      +'<span class="qblock-lbl">Domanda '+(qi+1)+'</span>'
+      +'<button class="btn sm" style="color:var(--dng);border-color:var(--dng)" onclick="removeQ('+mi+','+qi+')">'
+      +'<i class="ti ti-trash"></i></button></div>'
+      +'<div class="field" style="margin-bottom:.75rem"><label>Testo domanda</label>'
+      +'<input type="text" value="'+esc(q.q)+'" placeholder="Scrivi la domanda..." oninput="syncQ('+mi+','+qi+',\'q\',this.value)"></div>'
+      +'<div class="field" style="margin-bottom:.75rem"><label>Tipo risposta</label>'
+      +'<select onchange="syncQ('+mi+','+qi+',\'type\',this.value);renderQList('+mi+')">'
+      +'<option value="mc"'+(q.type==='mc'?' selected':'')+'>Scelta multipla (4 opzioni)</option>'
+      +'<option value="tf"'+(q.type==='tf'?' selected':'')+'>Vero / Falso</option>'
+      +'</select></div>'
+      +(q.type==='tf'?renderTF(mi,qi,q):renderMC(mi,qi,q))
+      +'</div>';
+  });
+  document.getElementById('ql-'+mi).innerHTML=h;
+}
+function renderTF(mi,qi,q){
+  var c=q.correct==='Falso'?'Falso':'Vero';
+  return '<div class="field" style="margin:0"><label>Risposta corretta</label>'
+    +'<select onchange="syncQ('+mi+','+qi+',\'correct\',this.value)">'
+    +'<option value="Vero"'+(c==='Vero'?' selected':'')+'>Vero</option>'
+    +'<option value="Falso"'+(c==='Falso'?' selected':'')+'>Falso</option>'
+    +'</select></div>';
+}
+function renderMC(mi,qi,q){
+  var L=['A','B','C','D'],h='<div>';
+  for(var j=0;j<4;j++){
+    var v=q.opts[j]||'',ci=typeof q.correct==='number'?q.correct:0;
+    h+='<div class="qoptrow">'
+      +'<input type="radio" name="cr-'+mi+'-'+qi+'" id="r-'+mi+'-'+qi+'-'+j+'" value="'+j+'"'+(ci===j?' checked':'')+' onchange="syncQ('+mi+','+qi+',\'correct\','+j+')">'
+      +'<label for="r-'+mi+'-'+qi+'-'+j+'" style="font-size:13px;font-weight:600;min-width:20px">'+L[j]+'</label>'
+      +'<input type="text" value="'+esc(v)+'" placeholder="Opzione '+L[j]+'" oninput="syncQOpt('+mi+','+qi+','+j+',this.value)"></div>';
+  }
+  return h+'</div>';
+}
+function syncQ(mi,qi,f,v){
+  _md[mi].questions[qi][f]=(f==='correct'&&typeof v==='string'&&v!=='Vero'&&v!=='Falso')?parseInt(v):v;
+}
+function syncQOpt(mi,qi,j,v){_md[mi].questions[qi].opts[j]=v;}
+
+// ─── SAVE LESSON ──────────────────────────────────────────────────────────────
+function saveLesson(){
+  var title=document.getElementById('ltitle').value.trim();
+  if(!title){alert('Inserisci il titolo.');return;}
+  var code=document.getElementById('lcode').value.trim().toUpperCase();
+  if(!code){alert('Codice mancante.');return;}
+  var dur=parseInt(document.getElementById('ldur').value);
+  var qsec=parseInt(document.getElementById('qsec').value);
+  var n=parseInt(document.getElementById('nsl').value);
+  var modules=[];
+
+  for(var i=0;i<n;i++){
+    var md=_md[i];
+    if(!md||md.imgs.length===0){alert('Modulo '+(i+1)+': carica almeno una slide.');return;}
+    var questions=[];
+    for(var qi=0;qi<md.questions.length;qi++){
+      var q=md.questions[qi];
+      if(!q.q.trim()){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': testo mancante.');return;}
+      var opts=[],correct='';
+      if(q.type==='tf'){
+        opts=['Vero','Falso'];
+        correct=q.correct==='Falso'?'Falso':'Vero';
+      } else {
+        opts=(q.opts||[]).filter(function(v){return v.trim();});
+        if(opts.length<2){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': inserisci almeno 2 opzioni.');return;}
+        var ci=typeof q.correct==='number'?q.correct:0;
+        correct=q.opts[ci]||q.opts[0];
+      }
+      questions.push({q:q.q,type:q.type,opts:opts,correct:correct});
+    }
+    modules.push({imgs:md.imgs,questions:questions});
+  }
+
+  lessons[code]={title:title,code:code,dur:dur,qsec:qsec,modules:modules};
+  persist();
+  renderSavedLessons();
+
+  // Show success
+  alert('✅ Lezione salvata!\n\nCodice: '+code+'\n\nTrovi il codice nella lista "Lezioni salvate" sopra.\nPuoi anche cliccare "Avvia" per iniziare direttamente come studente.');
+
+  // Reset for next lesson
+  _md={};
+  document.getElementById('ltitle').value='';
+  document.getElementById('lcode').value=genCode();
+  document.getElementById('nsl').value=1;
+  document.getElementById('nslv').textContent=1;
+  renderModBuilder();
+}
+
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
+function doLogin(){
+  var name=document.getElementById('ln').value.trim();
+  var store=document.getElementById('ls').value;
+  var code=document.getElementById('lc').value.trim().toUpperCase();
+  var err=document.getElementById('lerr');
+
+  if(!name){err.textContent='Inserisci nome e cognome.';err.style.display='block';return;}
+  if(!store){err.textContent='Seleziona lo store.';err.style.display='block';return;}
+  if(!code){err.textContent='Inserisci il codice lezione.';err.style.display='block';return;}
+
+  var lesson=lessons[code];
+  if(!lesson){
+    err.textContent='Codice "'+code+'" non trovato. Codici disponibili: '+(Object.keys(lessons).join(', ')||'nessuno');
+    err.style.display='block';return;
+  }
+  err.style.display='none';
+  S.user={name:name,store:store};
+  S.lesson=lesson;
+  S.curMod=0;S.curQ=0;S.allAnswers=[];
+  startLesson();
+}
+
+// ─── LESSON FLOW ──────────────────────────────────────────────────────────────
+function startLesson(){
+  var l=S.lesson;
+  document.getElementById('tb-title').textContent=l.title;
+  document.getElementById('tb-user').textContent=S.user.name;
+  document.getElementById('tb-store').textContent=S.user.store;
+  show('lesson');
+  S.gSec=l.dur*60;
+  clearInterval(S.gInt);
+  S.gInt=setInterval(function(){S.gSec--;updGTimer();if(S.gSec<=0){clearInterval(S.gInt);endLesson();}},1000);
+  updGTimer();showSlides();
+}
+function updGTimer(){
+  var m=Math.floor(S.gSec/60),s=S.gSec%60;
+  document.getElementById('gtimer-v').textContent=m+':'+(s<10?'0':'')+s;
+  document.getElementById('gtimer-el').classList.toggle('urg',S.gSec<120);
+}
+function totMods(){return S.lesson.modules.length;}
+function totQs(){return S.lesson.modules.reduce(function(a,m){return a+m.questions.length;},0);}
+
+function updateProgress(){
+  document.getElementById('pfill').style.width=(S.allAnswers.length/totQs()*100)+'%';
+  document.getElementById('tb-mod').textContent=(S.curMod+1)+'/'+totMods();
+}
+
+function showSlides(){
+  S.curSlide=0;
+  document.getElementById('lp-num').textContent='Modulo '+(S.curMod+1)+' di '+totMods();
+  updateProgress();
+  renderSlideViewer();
+  document.getElementById('lp').style.display='block';
+  document.getElementById('qp').style.display='none';
+}
+function renderSlideViewer(){
+  var mod=S.lesson.modules[S.curMod],imgs=mod.imgs,idx=S.curSlide;
+  if(!imgs||!imgs.length){
+    document.getElementById('sv-img').src='';
+    document.getElementById('sv-counter').textContent='Nessuna slide caricata';
+    document.getElementById('sv-dots').innerHTML='';
+    document.getElementById('sv-prev').disabled=true;
+    document.getElementById('sv-next').style.display='none';
+    return;
+  }
+  document.getElementById('sv-img').src=imgs[idx];
+  document.getElementById('sv-counter').textContent=(idx+1)+' / '+imgs.length;
+  var dots='';
+  imgs.forEach(function(_,i){dots+='<button class="slide-dot'+(i===idx?' active':'')+'" onclick="goSlide('+i+')"></button>';});
+  document.getElementById('sv-dots').innerHTML=dots;
+  document.getElementById('sv-prev').disabled=idx===0;
+  document.getElementById('sv-next').style.display=idx<imgs.length-1?'inline-flex':'none';
+}
+function slideNav(dir){
+  var imgs=S.lesson.modules[S.curMod].imgs||[];
+  S.curSlide=Math.max(0,Math.min(imgs.length-1,S.curSlide+dir));
+  renderSlideViewer();
+}
+function goSlide(i){S.curSlide=i;renderSlideViewer();}
+
+function startQuiz(){S.curQ=0;showQuestion();}
+
+function showQuestion(){
+  var mod=S.lesson.modules[S.curMod],qObj=mod.questions[S.curQ];
+  document.getElementById('lp').style.display='none';
+  document.getElementById('qp').style.display='block';
+  document.getElementById('qp-num').textContent='Modulo '+(S.curMod+1)+' — Dom. '+(S.curQ+1)+' / '+mod.questions.length;
+  document.getElementById('q-text').textContent=qObj.q;
+
+  var thumbs=document.getElementById('slide-thumbs-row'),rem=document.getElementById('slide-reminder');
+  var imgs=mod.imgs||[];
+  if(imgs.length){
+    thumbs.innerHTML=imgs.map(function(src,i){
+      return '<img src="'+src+'" style="height:60px;border-radius:6px;border:1px solid var(--br);cursor:pointer;flex-shrink:0" onclick="viewOverlay(\''+i+'\')" title="Slide '+(i+1)+'">';
+    }).join('');
+    rem.style.display='block';
+  } else {rem.style.display='none';}
+
+  var L=['A','B','C','D'];
+  document.getElementById('q-opts').innerHTML=qObj.opts.map(function(o,i){
+    return '<button class="opt-btn" id="ob'+i+'" onclick="selAns(\''+o.replace(/'/g,"\\'")+'\',' +i+')">'
+      +'<span class="oltr">'+(qObj.type==='tf'?(o==='Vero'?'✓':'✗'):L[i])+'</span>'+esc(o)+'</button>';
+  }).join('');
+
+  document.getElementById('q-fb').style.display='none';
+  document.getElementById('q-next-row').style.display='none';
+  S.answered=false;
+  startQTimer();
+}
+
+function startQTimer(){
+  var ts=S.lesson.qsec;S.qSec=ts;
+  var circ=Math.PI*2*22;
+  document.getElementById('tnum').textContent=ts;
+  document.getElementById('rfill').style.strokeDasharray=circ;
+  document.getElementById('rfill').style.strokeDashoffset=0;
+  document.getElementById('tring').className='tring';
+  clearInterval(S.qInt);
+  S.qInt=setInterval(function(){
+    S.qSec--;
+    var pct=S.qSec/ts;
+    document.getElementById('rfill').style.strokeDashoffset=circ*(1-pct);
+    document.getElementById('tnum').textContent=S.qSec;
+    var tr=document.getElementById('tring');
+    if(S.qSec<=3) tr.className='tring dng';
+    else if(S.qSec<=Math.ceil(ts*0.3)) tr.className='tring warn';
+    if(S.qSec<=0){clearInterval(S.qInt);if(!S.answered)timeoutAns();}
+  },1000);
+}
+
+function selAns(opt,idx){
+  if(S.answered)return;
+  S.answered=true;clearInterval(S.qInt);
+  var mod=S.lesson.modules[S.curMod],qObj=mod.questions[S.curQ];
+  var ok=opt===qObj.correct;
+  S.allAnswers.push({modIdx:S.curMod,qIdx:S.curQ,chosen:opt,correct:ok,timedOut:false,qText:qObj.q,correctAns:qObj.correct});
+  document.querySelectorAll('.opt-btn').forEach(function(b,i){
+    b.disabled=true;
+    if(qObj.opts[i]===qObj.correct) b.classList.add('correct');
+    else if(i===idx&&!ok) b.classList.add('wrong');
+  });
+  var fb=document.getElementById('q-fb');fb.style.display='block';
+  if(ok){fb.style.background='#EAF3DE';fb.style.color='#27500A';fb.style.borderColor='#639922';fb.innerHTML='<strong>✓ Corretto!</strong>';}
+  else{fb.style.background='var(--dng-l)';fb.style.color='#501313';fb.style.borderColor='var(--dng)';fb.innerHTML='<strong>✗ Errato.</strong> Risposta corretta: <strong>'+esc(qObj.correct)+'</strong>';}
+  updateProgress();
+  setTimeout(showNextBtn,600);
+}
+
+function timeoutAns(){
+  S.answered=true;
+  var mod=S.lesson.modules[S.curMod],qObj=mod.questions[S.curQ];
+  S.allAnswers.push({modIdx:S.curMod,qIdx:S.curQ,chosen:null,correct:false,timedOut:true,qText:qObj.q,correctAns:qObj.correct});
+  document.querySelectorAll('.opt-btn').forEach(function(b,i){b.disabled=true;if(qObj.opts[i]===qObj.correct)b.classList.add('correct');});
+  var fb=document.getElementById('q-fb');fb.style.display='block';
+  fb.style.background='var(--wrn-l)';fb.style.color='#633806';fb.style.borderColor='var(--wrn)';
+  fb.innerHTML='<strong>⏱ Tempo scaduto!</strong> Risposta corretta: <strong>'+esc(qObj.correct)+'</strong>';
+  updateProgress();setTimeout(showNextBtn,600);
+}
+
+function showNextBtn(){
+  var mod=S.lesson.modules[S.curMod];
+  var lastQ=S.curQ>=mod.questions.length-1,lastMod=S.curMod>=totMods()-1;
+  var nr=document.getElementById('q-next-row');nr.style.display='flex';nr.style.justifyContent='flex-end';
+  var nb=document.getElementById('q-next-btn');
+  if(!lastQ) nb.innerHTML='Prossima domanda <i class="ti ti-arrow-right"></i>';
+  else if(!lastMod) nb.innerHTML='Prossimo modulo <i class="ti ti-arrow-right"></i>';
+  else nb.innerHTML='Vedi risultati <i class="ti ti-arrow-right"></i>';
+}
+
+function nextQuestion(){
+  var mod=S.lesson.modules[S.curMod];
+  var lastQ=S.curQ>=mod.questions.length-1,lastMod=S.curMod>=totMods()-1;
+  if(!lastQ){S.curQ++;showQuestion();}
+  else if(!lastMod){S.curMod++;showSlides();}
+  else endLesson();
+}
+
+function viewOverlay(imgIdx){
+  var src=S.lesson.modules[S.curMod].imgs[parseInt(imgIdx)];
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:1rem';
+  ov.innerHTML='<img src="'+src+'" style="max-width:100%;max-height:90vh;border-radius:8px;object-fit:contain">';
+  ov.onclick=function(){document.body.removeChild(ov);};
+  document.body.appendChild(ov);
+}
+
+// ─── END ──────────────────────────────────────────────────────────────────────
+function endLesson(){
+  clearInterval(S.gInt);clearInterval(S.qInt);
+  var tot=totQs(),ok=S.allAnswers.filter(function(a){return a.correct;}).length;
+  var to=S.allAnswers.filter(function(a){return a.timedOut;}).length;
+  var pct=tot>0?Math.round(ok/tot*100):0;
+  var spent=S.lesson.dur*60-S.gSec,mins=Math.floor(spent/60),secs=spent%60;
+  var res={user:S.user.name,store:S.user.store,lesson:S.lesson.title,code:S.lesson.code,
+    ok:ok,tot:tot,pct:pct,to:to,date:new Date().toLocaleString('it-IT'),
+    timeStr:mins+'m '+secs+'s',answers:JSON.parse(JSON.stringify(S.allAnswers))};
+  results.push(res);
+  document.getElementById('rs-sub').textContent=S.user.name+' · '+S.user.store;
+  document.getElementById('rs-metrics').innerHTML=
+    '<div class="metric"><div class="mv">'+ok+'/'+tot+'</div><div class="ml">Corrette</div></div>'
+    +'<div class="metric"><div class="mv" style="color:'+(pct>=70?'var(--ac)':'var(--dng)')+'">'+pct+'%</div><div class="ml">Punteggio</div></div>'
+    +'<div class="metric"><div class="mv" style="color:var(--wrn)">'+to+'</div><div class="ml">Timeout</div></div>'
+    +'<div class="metric"><div class="mv" style="color:var(--info)">'+mins+'m '+secs+'s</div><div class="ml">Tempo</div></div>';
+  var bd='<div style="border-top:1px solid var(--br);padding-top:1rem;margin-top:.5rem">';
+  bd+='<div class="mu sm-tx f600" style="margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.4px">Dettaglio risposte</div>';
+  S.allAnswers.forEach(function(a){
+    var ic=a.timedOut?'⏱':(a.correct?'✓':'✗'),cl=a.timedOut?'var(--wrn)':(a.correct?'var(--ac)':'var(--dng)');
+    bd+='<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--br);font-size:13px">'
+      +'<span style="font-weight:700;color:'+cl+';width:20px;flex-shrink:0;margin-top:1px">'+ic+'</span><div style="flex:1">'
+      +'<div style="font-size:10px;color:var(--mu)">Modulo '+(a.modIdx+1)+'</div>'
+      +'<div style="font-weight:500;margin-bottom:2px">'+esc(a.qText)+'</div>'
+      +'<div class="mu">Risposta: <strong>'+(a.timedOut?'Timeout':esc(a.chosen||'—'))+'</strong>'
+      +(!a.correct&&!a.timedOut?' · Corretta: <strong style="color:var(--ac)">'+esc(a.correctAns)+'</strong>':'')
+      +'</div></div></div>';
+  });
+  bd+='</div>';
+  document.getElementById('rs-detail').innerHTML=bd;
+  show('results');renderResults();renderRank();
+}
+
+// ─── ADMIN RENDERING ──────────────────────────────────────────────────────────
+function renderResults(){
+  var el=document.getElementById('res-list');
+  if(!results.length){el.innerHTML='<div class="mu sm-tx">Nessun risultato ancora.</div>';return;}
+  el.innerHTML=results.map(function(r,i){
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--br);font-size:13px">'
+      +'<div><div class="f600">'+esc(r.user)+' <span class="mu" style="font-weight:400">· '+esc(r.store)+'</span></div>'
+      +'<div class="mu" style="margin-top:3px">'+esc(r.lesson)+' ('+r.code+') · '+r.date+' · '+r.timeStr+'</div></div>'
+      +'<div style="display:flex;gap:10px;align-items:center">'
+      +'<div style="text-align:right"><div class="f600" style="color:'+(r.pct>=70?'var(--ac)':'var(--dng)')+'">'+r.pct+'%</div>'
+      +'<div class="mu">'+r.ok+'/'+r.tot+'</div></div>'
+      +'<button class="btn sm" onclick="exportOnePDF('+i+')"><i class="ti ti-file-export"></i></button>'
+      +'</div></div>';
+  }).join('');
+}
+function renderRankFilter(){
+  var sel=document.getElementById('rank-filter'),cur=sel.value;
+  sel.innerHTML='<option value="">Tutti gli store</option>';
+  stores.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  sel.value=cur;
+}
+function renderRank(){
+  var fStore=document.getElementById('rank-filter').value,el=document.getElementById('rank-body');
+  var data=fStore?results.filter(function(r){return r.store===fStore;}):results;
+  if(!data.length){el.innerHTML='<div class="mu sm-tx">Nessun dato'+(fStore?' per questo store':'')+' ancora.</div>';return;}
+  var byUser={};
+  data.forEach(function(r){
+    var k=r.user+'|'+r.store;
+    if(!byUser[k]) byUser[k]={user:r.user,store:r.store,sessions:0,totalPct:0,bestPct:0};
+    var u=byUser[k];u.sessions++;u.totalPct+=r.pct;u.bestPct=Math.max(u.bestPct,r.pct);
+  });
+  var sorted=Object.values(byUser).sort(function(a,b){return(b.totalPct/b.sessions)-(a.totalPct/a.sessions);});
+  var medals=['m1','m2','m3'];
+  el.innerHTML='<table class="rank-table"><thead><tr><th style="width:40px">#</th><th>Arredatore</th><th>Store</th>'
+    +'<th style="text-align:right">Media</th><th style="text-align:right">Migliore</th><th style="text-align:right">Sessioni</th></tr></thead><tbody>'
+    +sorted.map(function(u,i){
+      var avg=Math.round(u.totalPct/u.sessions);
+      var pos=i<3?'<span class="medal '+medals[i]+'">'+(i+1)+'</span>':'<span style="color:var(--mu);font-size:13px">'+(i+1)+'</span>';
+      return '<tr><td style="text-align:center">'+pos+'</td><td class="f600">'+esc(u.user)+'</td><td class="mu">'+esc(u.store)+'</td>'
+        +'<td style="text-align:right;font-weight:600;color:'+(avg>=70?'var(--ac)':'var(--dng)')+'">'+avg+'%</td>'
+        +'<td style="text-align:right;color:var(--ac);font-weight:600">'+u.bestPct+'%</td>'
+        +'<td style="text-align:right;color:var(--mu)">'+u.sessions+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+
+// ─── PDF ──────────────────────────────────────────────────────────────────────
+function buildPDF(r){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+  doc.setFillColor(29,158,117);doc.rect(0,0,pw,32,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+  doc.text('FormArreda',14,13);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text('Risultato — '+r.lesson,14,21);
+  doc.text('Codice: '+r.code+' · '+r.date,14,28);
+  doc.setTextColor(30,30,30);var y=44;
+  var row=function(lbl,val,color){
+    doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);doc.text(lbl,14,y);
+    doc.setFont('helvetica','bold');if(color)doc.setTextColor.apply(doc,color);else doc.setTextColor(30,30,30);
+    doc.text(String(val),75,y);doc.setTextColor(30,30,30);y+=8;
+  };
+  row('Arredatore:',r.user);row('Store:',r.store);row('Tempo:',r.timeStr);
+  row('Punteggio:',r.pct+'%',r.pct>=70?[29,158,117]:[226,75,74]);
+  row('Corrette:',r.ok+' su '+r.tot);row('Timeout:',r.to);
+  y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=10;
+  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(8,80,65);
+  doc.text('Dettaglio risposte',14,y);y+=9;
+  r.answers.forEach(function(a){
+    if(y>ph-25){doc.addPage();y=20;}
+    var ic=a.timedOut?'[TIMEOUT]':(a.correct?'[CORRETTO]':'[ERRATO]');
+    var col=a.timedOut?[186,117,23]:(a.correct?[29,158,117]:[226,75,74]);
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,col);doc.text(ic,14,y);
+    doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
+    var qlines=doc.splitTextToSize('Mod.'+(a.modIdx+1)+' — '+a.qText,125);doc.text(qlines,44,y);y+=qlines.length*4.5;
+    doc.setTextColor(100,100,100);
+    doc.text('Risposta: '+(a.timedOut?'Timeout':(a.chosen||'—'))+((!a.correct&&!a.timedOut)?'  Corretta: '+a.correctAns:''),44,y);
+    doc.setDrawColor(235,235,235);doc.line(14,y+4,pw-14,y+4);y+=10;
+  });
+  doc.setFillColor(29,158,117);doc.rect(0,ph-10,pw,10,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','normal');
+  doc.text('FormArreda · '+new Date().toLocaleString('it-IT'),14,ph-4);
+  return doc;
+}
+function exportMyPDF(){if(!results.length)return;var r=results[results.length-1];buildPDF(r).save('FormArreda_'+r.user.replace(/\s/g,'_')+'.pdf');}
+function exportOnePDF(i){buildPDF(results[i]).save('FormArreda_'+results[i].user.replace(/\s/g,'_')+'.pdf');}
+function exportAllPDF(){
+  if(!results.length){alert('Nessun risultato.');return;}
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+  doc.setFillColor(29,158,117);doc.rect(0,0,pw,26,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  doc.text('FormArreda — Riepilogo',14,13);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');
+  doc.text('Esportato il '+new Date().toLocaleString('it-IT')+' · '+results.length+' sessioni',14,21);
+  var y=36;
+  results.forEach(function(r,idx){
+    if(y>ph-28){doc.addPage();y=20;}
+    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(29,158,117);
+    doc.text((idx+1)+'. '+r.user+' — '+r.store,14,y);y+=6;
+    doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);doc.setFontSize(9);
+    doc.text(r.lesson+' ('+r.code+') · '+r.date+' · '+r.timeStr,14,y);y+=5;
+    doc.setFont('helvetica','bold');doc.setTextColor.apply(doc,r.pct>=70?[29,158,117]:[226,75,74]);
+    doc.text('Punteggio: '+r.pct+'%  Corrette: '+r.ok+'/'+r.tot+'  Timeout: '+r.to,14,y);
+    doc.setDrawColor(220,220,220);doc.line(14,y+4,pw-14,y+4);y+=12;
+  });
+  doc.setFillColor(29,158,117);doc.rect(0,ph-10,pw,10,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','normal');
+  doc.text('FormArreda · '+new Date().toLocaleString('it-IT'),14,ph-4);
+  doc.save('FormArreda_Risultati_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
+// ─── DEMO ─────────────────────────────────────────────────────────────────────
+(function(){
+  function svg(label,color){
+    var s='<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="'+color+'"/><text x="400" y="210" text-anchor="middle" font-family="system-ui" font-size="38" font-weight="bold" fill="white">'+label+'</text><text x="400" y="260" text-anchor="middle" font-family="system-ui" font-size="16" fill="rgba(255,255,255,0.7)">FormArreda Demo</text></svg>';
+    return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+  }
+  lessons['DEMO-001']={title:'I 6 Tipi di Clienti',code:'DEMO-001',dur:30,qsec:20,
+    modules:[
+      {imgs:[svg('I 6 Tipi di Clienti','#1D9E75'),svg('Analitico 25% · Sensibile 25%','#185FA5'),svg('Guida 15% · Estroverso 25%','#085041')],
+       questions:[
+        {q:"L'Acquirente Analitico costituisce il 25% del mercato?",type:'tf',opts:['Vero','Falso'],correct:'Vero'},
+        {q:"Quale acquirente ha più bisogno di rassicurazioni?",type:'mc',opts:['Realizzato','Guida','Sensibile','Estroverso'],correct:'Sensibile'},
+        {q:"L'Acquirente Indifferente e il Realizzato insieme fanno il 10%?",type:'tf',opts:['Vero','Falso'],correct:'Vero'}
+      ]},
+      {imgs:[svg('Strategie di Vendita','#BA7517'),svg('Chiudere con Efficacia','#E24B4A')],
+       questions:[
+        {q:"Il cliente vuole dati tecnici prima di comprare. Che tipo è?",type:'mc',opts:['Realizzato','Analitico','Guida','Indifferente'],correct:'Analitico'},
+        {q:"Con l'Estroverso devo ascoltarlo e renderlo protagonista della trattativa?",type:'tf',opts:['Vero','Falso'],correct:'Vero'}
+      ]}
+    ]};
+})();
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+hydrate();
+populateSel();
+renderLoginLessons();
+renderModBuilder();
+renderStoresList();
+renderSavedLessons();
+document.getElementById('lcode').value=genCode();
+</script>
+</body>
+</html>
