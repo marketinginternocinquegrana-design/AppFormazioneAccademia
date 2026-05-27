@@ -6,6 +6,7 @@
 <title>FormArreda</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a1a1a;min-height:100vh}
@@ -98,10 +99,22 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
 .flex{display:flex}.gap2{gap:8px}.gap3{gap:14px}.jb{justify-content:space-between}.ac{align-items:center}
 .mt1{margin-top:.5rem}.mt2{margin-top:1rem}.mt3{margin-top:1.5rem}
 .mu{color:var(--mu)}.sm-tx{font-size:13px}.f600{font-weight:600}.wf{width:100%}
+/* Loading overlay */
+#loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid var(--ac-l);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#loading-overlay p{font-size:14px;color:var(--mu)}
 @media(max-width:600px){.app{padding:.75rem}.tabs{flex-wrap:wrap}.tab{flex:none;width:calc(50% - 2px)}.rmg{grid-template-columns:1fr 1fr}.img-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}}
 </style>
 </head>
 <body>
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="display:none">
+  <div class="spinner"></div>
+  <p id="loading-msg">Caricamento...</p>
+</div>
+
 <div class="app">
 
 <!-- LOGIN -->
@@ -129,7 +142,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       <button class="btn pr wf" onclick="doLogin()"><i class="ti ti-arrow-right"></i> Inizia lezione</button>
     </div>
 
-    <!-- LEZIONI DISPONIBILI -->
     <div id="login-lessons-box" style="display:none" class="card">
       <div class="ch"><i class="ti ti-book"></i><h2>Lezioni disponibili</h2></div>
       <div id="login-lessons-list"></div>
@@ -159,14 +171,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     <div class="admin-notice"><i class="ti ti-info-circle"></i>
       <span>Carica le <strong>slide PowerPoint</strong> come immagini, aggiungi le domande e salva. Poi dai il codice agli alunni.</span>
     </div>
-
-    <!-- LEZIONI SALVATE -->
     <div class="card" id="saved-lessons-card">
       <div class="ch"><i class="ti ti-list"></i><h2>Lezioni salvate</h2></div>
-      <div id="saved-lessons-list"><div class="mu sm-tx">Nessuna lezione ancora.</div></div>
+      <div id="saved-lessons-list"><div class="mu sm-tx">Caricamento...</div></div>
     </div>
-
-    <!-- FORM NUOVA LEZIONE -->
     <div class="card">
       <div class="ch"><i class="ti ti-book-2"></i><h2>Crea lezione</h2></div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:.875rem">
@@ -225,7 +233,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       <div class="ch"><i class="ti ti-chart-bar"></i><h2>Risultati sessioni</h2>
         <button class="btn sm pr" style="margin-left:auto" onclick="exportAllPDF()"><i class="ti ti-file-export"></i> Esporta tutti</button>
       </div>
-      <div id="res-list"><div class="mu sm-tx">Nessun risultato ancora.</div></div>
+      <div id="res-list"><div class="mu sm-tx">Caricamento...</div></div>
     </div>
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
@@ -240,7 +248,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
           </select>
         </div>
       </div>
-      <div id="rank-body"><div class="mu sm-tx">Nessun dato ancora.</div></div>
+      <div id="rank-body"><div class="mu sm-tx">Caricamento...</div></div>
     </div>
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
@@ -260,7 +268,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
   </div>
   <div class="pbar"><div class="pfill" id="pfill" style="width:0%"></div></div>
 
-  <!-- SLIDE VIEWER -->
   <div id="lp" style="display:none">
     <div class="card" style="padding:0;overflow:hidden">
       <div style="padding:1rem 1.25rem .75rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:10px">
@@ -286,7 +293,6 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     </div>
   </div>
 
-  <!-- QUIZ -->
   <div id="qp" style="display:none">
     <div class="card">
       <div class="flex gap2 ac" style="margin-bottom:1rem">
@@ -337,58 +343,205 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
 </div>
 
 </div>
+
 <script>
+// ─── SUPABASE ────────────────────────────────────────────────────────────────
+const SUPA_URL = 'https://pvceaejclrbgbxiuacwq.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2Y2VhZWpjbHJiZ2J4aXVhY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDQwNjcsImV4cCI6MjA5NTM4MDA2N30.DgqFPHQUUObnfnNVl4_vz2ixICr--Rm9WwxABdIu7vw';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ─── LOADING ─────────────────────────────────────────────────────────────────
+function showLoad(msg){
+  document.getElementById('loading-overlay').style.display='flex';
+  document.getElementById('loading-msg').textContent=msg||'Caricamento...';
+}
+function hideLoad(){ document.getElementById('loading-overlay').style.display='none'; }
+
 // ─── STATE ────────────────────────────────────────────────────────────────────
-var lessons = {};
-var results = [];
-var stores = ['Milano Nord','Roma Centro','Torino Est','Firenze','Napoli'];
-var _md = {};  // module builder data: _md[moduleIndex] = {imgs:[], questions:[]}
+var lessons = {};   // code -> lesson object (with imgs as URLs)
+var results = [];   // local session results cache
+var stores = [];    // array of store names
+var _md = {};       // module builder: _md[i] = {imgs:[], imgFiles:[], questions:[]}
 
 var S = {
   lesson:null, user:{name:'',store:''},
   curMod:0, curQ:0, allAnswers:[],
   gInt:null, gSec:0, qInt:null, qSec:0,
-  answered:false, curSlide:0
+  answered:false, curSlide:0,
+  lastResult:null
 };
 
-// ─── PERSIST ──────────────────────────────────────────────────────────────────
-function persist() {
-  try {
-    // Store lessons WITHOUT images (just metadata) to avoid quota issues
-    var meta = {};
-    Object.keys(lessons).forEach(function(code) {
-      var l = lessons[code];
-      meta[code] = {
-        title:l.title, code:l.code, dur:l.dur, qsec:l.qsec,
-        modules: l.modules.map(function(m){ return { questions: m.questions, imgCount: m.imgs.length }; })
-      };
-    });
-    localStorage.setItem('fa_meta', JSON.stringify(meta));
-    // Store full lessons (with images) in sessionStorage for this session
-    sessionStorage.setItem('fa_lessons', JSON.stringify(lessons));
-  } catch(e) {}
+// ─── SUPABASE: STORES ─────────────────────────────────────────────────────────
+async function loadStores(){
+  var {data,error}=await sb.from('stores').select('*').order('name');
+  if(error){console.error(error);return;}
+  stores=data.map(function(r){return {id:r.id,name:r.name};});
 }
 
-function hydrate() {
-  // Try sessionStorage first (has images, same session)
-  try {
-    var ss = sessionStorage.getItem('fa_lessons');
-    if (ss) { lessons = JSON.parse(ss); return; }
-  } catch(e) {}
-  // Fall back to localStorage metadata (no images, but lesson exists)
-  try {
-    var ls = localStorage.getItem('fa_meta');
-    if (ls) {
-      var meta = JSON.parse(ls);
-      Object.keys(meta).forEach(function(code) {
-        var m = meta[code];
-        lessons[code] = {
-          title:m.title, code:m.code, dur:m.dur, qsec:m.qsec,
-          modules: m.modules.map(function(mod){ return { imgs:[], questions: mod.questions }; })
-        };
-      });
+async function addStore(){
+  var inp=document.getElementById('nsi'),val=inp.value.trim();
+  if(!val){alert('Inserisci nome store.');return;}
+  if(stores.find(function(s){return s.name===val;})){alert('Store già esistente.');return;}
+  showLoad('Salvataggio store...');
+  var {data,error}=await sb.from('stores').insert({name:val}).select().single();
+  hideLoad();
+  if(error){alert('Errore: '+error.message);return;}
+  stores.push({id:data.id,name:data.name});
+  inp.value='';
+  renderStoresList();
+  renderRankFilter();
+  populateSel();
+}
+
+async function removeStoreById(id){
+  showLoad('Eliminazione store...');
+  var {error}=await sb.from('stores').delete().eq('id',id);
+  hideLoad();
+  if(error){alert('Errore: '+error.message);return;}
+  stores=stores.filter(function(s){return s.id!==id;});
+  renderStoresList();renderRankFilter();populateSel();
+}
+
+function renderStoresList(){
+  document.getElementById('stores-list').innerHTML=stores.map(function(s){
+    return '<div class="store-tag">'+esc(s.name)
+      +'<button onclick="removeStoreById(\''+s.id+'\')\">&times;</button></div>';
+  }).join('');
+}
+
+// ─── SUPABASE: LESSONS ────────────────────────────────────────────────────────
+async function loadLessons(){
+  var {data,error}=await sb.from('lessons').select('*').order('created_at',{ascending:false});
+  if(error){console.error(error);return;}
+  lessons={};
+  data.forEach(function(r){
+    lessons[r.code]={
+      id:r.id, title:r.title, code:r.code,
+      dur:r.dur, qsec:r.qsec, modules:r.modules
+    };
+  });
+  // Add demo lesson (local, no DB)
+  addDemoLesson();
+}
+
+async function saveLesson(){
+  var title=document.getElementById('ltitle').value.trim();
+  if(!title){alert('Inserisci il titolo.');return;}
+  var code=document.getElementById('lcode').value.trim().toUpperCase();
+  if(!code){alert('Codice mancante.');return;}
+  var dur=parseInt(document.getElementById('ldur').value);
+  var qsec=parseInt(document.getElementById('qsec').value);
+  var n=parseInt(document.getElementById('nsl').value);
+
+  // Validate
+  for(var i=0;i<n;i++){
+    var md=_md[i];
+    if(!md||(!md.imgs.length&&!md.imgFiles.length)){alert('Modulo '+(i+1)+': carica almeno una slide.');return;}
+    for(var qi=0;qi<md.questions.length;qi++){
+      var q=md.questions[qi];
+      if(!q.q.trim()){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': testo mancante.');return;}
+      if(q.type==='mc'){
+        var opts=(q.opts||[]).filter(function(v){return v.trim();});
+        if(opts.length<2){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': almeno 2 opzioni.');return;}
+      }
     }
-  } catch(e) {}
+  }
+
+  showLoad('Caricamento slide su Supabase Storage...');
+
+  var modules=[];
+  for(var i=0;i<n;i++){
+    var md=_md[i];
+    var imgUrls=[];
+
+    // Upload new files
+    for(var fi=0;fi<md.imgFiles.length;fi++){
+      var file=md.imgFiles[fi];
+      var path=code+'/mod'+i+'/'+Date.now()+'_'+fi+'_'+file.name.replace(/[^a-zA-Z0-9.]/g,'_');
+      var {data:upData,error:upErr}=await sb.storage.from('slides').upload(path,file,{upsert:true});
+      if(upErr){hideLoad();alert('Errore upload immagine: '+upErr.message);return;}
+      var {data:urlData}=sb.storage.from('slides').getPublicUrl(path);
+      imgUrls.push(urlData.publicUrl);
+    }
+
+    // Keep existing URLs (already uploaded previously)
+    var allImgs=md.imgs.filter(function(u){return u.startsWith('http');}).concat(imgUrls);
+
+    var questions=[];
+    for(var qi=0;qi<md.questions.length;qi++){
+      var q=md.questions[qi];
+      var opts=[],correct='';
+      if(q.type==='tf'){
+        opts=['Vero','Falso'];
+        correct=q.correct==='Falso'?'Falso':'Vero';
+      } else {
+        opts=(q.opts||[]).filter(function(v){return v.trim();});
+        var ci=typeof q.correct==='number'?q.correct:0;
+        correct=q.opts[ci]||q.opts[0];
+      }
+      questions.push({q:q.q,type:q.type,opts:opts,correct:correct});
+    }
+    modules.push({imgs:allImgs,questions:questions});
+  }
+
+  showLoad('Salvataggio lezione...');
+  var {error}=await sb.from('lessons').upsert({
+    code:code, title:title, dur:dur, qsec:qsec, modules:modules
+  },{onConflict:'code'});
+  hideLoad();
+
+  if(error){alert('Errore salvataggio: '+error.message);return;}
+
+  await loadLessons();
+  renderSavedLessons();
+  alert('✅ Lezione salvata!\n\nCodice: '+code+'\n\nTutti gli studenti vedranno subito la lezione.');
+
+  _md={};
+  document.getElementById('ltitle').value='';
+  document.getElementById('lcode').value=genCode();
+  document.getElementById('nsl').value=1;
+  document.getElementById('nslv').textContent=1;
+  renderModBuilder();
+}
+
+async function deleteLesson(code){
+  var l=lessons[code];
+  if(!l||!l.id){delete lessons[code];renderSavedLessons();return;}
+  if(!confirm('Eliminare "'+l.title+'" ('+code+')?')) return;
+  showLoad('Eliminazione...');
+  await sb.from('lessons').delete().eq('id',l.id);
+  hideLoad();
+  delete lessons[code];
+  renderSavedLessons();
+}
+
+// ─── SUPABASE: RESULTS ───────────────────────────────────────────────────────
+async function loadResults(){
+  var {data,error}=await sb.from('results').select('*').order('created_at',{ascending:false});
+  if(error){console.error(error);return;}
+  results=data.map(function(r){return {
+    user:r.user_name, store:r.store,
+    lesson:r.lesson_title, code:r.lesson_code,
+    ok:r.ok, tot:r.tot, pct:r.pct,
+    to:r.timeout_count, date:r.created_at?new Date(r.created_at).toLocaleString('it-IT'):'',
+    timeStr:r.time_str, answers:r.answers
+  };});
+}
+
+async function saveResult(res){
+  var {error}=await sb.from('results').insert({
+    user_name:res.user, store:res.store,
+    lesson_title:res.lesson, lesson_code:res.code,
+    ok:res.ok, tot:res.tot, pct:res.pct,
+    timeout_count:res.to, time_str:res.timeStr,
+    answers:res.answers
+  });
+  if(error) console.error('Errore salvataggio risultato:',error);
+  else {
+    await loadResults();
+    renderResults();
+    renderRank();
+  }
 }
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
@@ -398,13 +551,22 @@ function show(id){
   window.scrollTo(0,0);
 }
 
-function goLogin(){
+async function goLogin(){
+  showLoad('Caricamento...');
+  await loadStores();
+  await loadLessons();
+  hideLoad();
   populateSel();
   renderLoginLessons();
   show('login');
 }
 
-function goAdmin(){
+async function goAdmin(){
+  showLoad('Caricamento dati...');
+  await loadStores();
+  await loadLessons();
+  await loadResults();
+  hideLoad();
   show('admin');
   renderModBuilder();
   renderStoresList();
@@ -412,39 +574,27 @@ function goAdmin(){
   renderResults();
   renderRank();
   renderRankFilter();
-  document.getElementById('lcode').value = genCode();
+  document.getElementById('lcode').value=genCode();
 }
 
 function aTab(t){
   ['lessons','stores','results','rank'].forEach(function(x){
-    document.getElementById('ap-'+x).style.display = x===t?'block':'none';
+    document.getElementById('ap-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
-  if(t==='results') renderResults();
-  if(t==='rank'){renderRankFilter();renderRank();}
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function genCode(){ return 'ARR-'+String(Math.floor(Math.random()*999)+1).padStart(3,'0'); }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
-// ─── STORES ───────────────────────────────────────────────────────────────────
+// ─── STORES UI ────────────────────────────────────────────────────────────────
 function populateSel(){
   var s=document.getElementById('ls');
   s.innerHTML='<option value="">— Seleziona lo store —</option>';
-  stores.forEach(function(x){var o=document.createElement('option');o.value=x;o.textContent=x;s.appendChild(o);});
-}
-function addStore(){
-  var inp=document.getElementById('nsi'),val=inp.value.trim();
-  if(!val){alert('Inserisci nome store.');return;}
-  if(stores.includes(val)){alert('Store già esistente.');return;}
-  stores.push(val);inp.value='';renderStoresList();renderRankFilter();populateSel();
-}
-function removeStoreByIdx(i){stores.splice(i,1);renderStoresList();renderRankFilter();populateSel();}
-function renderStoresList(){
-  document.getElementById('stores-list').innerHTML=stores.map(function(s,i){
-    return '<div class="store-tag">'+s+'<button onclick="removeStoreByIdx('+i+')">&times;</button></div>';
-  }).join('');
+  stores.forEach(function(x){
+    var o=document.createElement('option');o.value=x.name;o.textContent=x.name;s.appendChild(o);
+  });
 }
 
 // ─── SAVED LESSONS LIST ───────────────────────────────────────────────────────
@@ -459,7 +609,7 @@ function renderSavedLessons(){
       +'<div><div class="f600">'+esc(l.title)+'</div>'
       +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+l.dur+' min</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
-      +'<div class="lcode-tag">'+code+'</div>'
+      +'<div class="lcode-tag">'+esc(code)+'</div>'
       +'<button class="btn sm" onclick="startAsStudent(\''+code+'\')" style="background:var(--info);color:#fff;border-color:var(--info)"><i class="ti ti-player-play"></i> Avvia</button>'
       +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
       +'</div></div>';
@@ -477,19 +627,14 @@ function renderLoginLessons(){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--br);font-size:13px">'
       +'<div class="f600">'+esc(l.title)+'</div>'
       +'<div class="lcode-tag" style="cursor:pointer" onclick="document.getElementById(\'lc\').value=\''+code+'\'">'
-      +code+'</div></div>';
+      +esc(code)+'</div></div>';
   }).join('');
 }
 
-function deleteLesson(code){
-  if(!confirm('Eliminare "'+lessons[code].title+'" ('+code+')?')) return;
-  delete lessons[code];persist();renderSavedLessons();
-}
-
 function startAsStudent(code){
-  // Go directly to login screen with the code pre-filled
-  goLogin();
-  document.getElementById('lc').value=code;
+  goLogin().then(function(){
+    document.getElementById('lc').value=code;
+  });
 }
 
 // ─── MODULE BUILDER ───────────────────────────────────────────────────────────
@@ -502,7 +647,7 @@ function renderModBuilder(){
   var n=parseInt(document.getElementById('nsl').value);
   var h='';
   for(var i=0;i<n;i++){
-    if(!_md[i]) _md[i]={imgs:[],questions:[]};
+    if(!_md[i]) _md[i]={imgs:[],imgFiles:[],questions:[]};
     h+='<div class="mod-card">'
       +'<div class="mod-hd"><span class="mod-lbl"><i class="ti ti-layout-cards" style="font-size:12px"></i> Modulo '+(i+1)+'</span>'
       +'<span class="mu sm-tx">Slide PowerPoint + Domande</span></div>'
@@ -511,7 +656,7 @@ function renderModBuilder(){
       +'<div class="img-grid" id="ig-'+i+'"></div>'
       +'<input type="file" id="fi-'+i+'" accept="image/*" multiple style="display:none" onchange="handleImgs('+i+',this)">'
       +'<button class="btn sm" onclick="document.getElementById(\'fi-'+i+'\').click()"><i class="ti ti-photo-plus"></i> Aggiungi slide</button>'
-      +'<div class="mu sm-tx mt1">Carica screenshot del PowerPoint. Lo studente le vedrà in sequenza.</div>'
+      +'<div class="mu sm-tx mt1">Carica screenshot del PowerPoint. Vengono salvate su Supabase Storage.</div>'
       +'</div>'
       +'<div>'
       +'<div style="font-size:12px;font-weight:600;color:var(--mu);margin-bottom:.5rem"><i class="ti ti-help-circle"></i> DOMANDE</div>'
@@ -530,15 +675,24 @@ function renderModBuilder(){
 // ─── IMAGES ───────────────────────────────────────────────────────────────────
 function handleImgs(mi,inp){
   var files=Array.from(inp.files);if(!files.length)return;
-  var loaded=0;
+  // Store files for upload later
+  if(!_md[mi].imgFiles) _md[mi].imgFiles=[];
   files.forEach(function(f){
-    var r=new FileReader();
-    r.onload=function(e){_md[mi].imgs.push(e.target.result);loaded++;if(loaded===files.length)renderImgGrid(mi);};
-    r.readAsDataURL(f);
+    _md[mi].imgFiles.push(f);
+    // Create preview URL
+    var url=URL.createObjectURL(f);
+    _md[mi].imgs.push(url);
   });
   inp.value='';
+  renderImgGrid(mi);
 }
-function rmImg(mi,idx){_md[mi].imgs.splice(idx,1);renderImgGrid(mi);}
+
+function rmImg(mi,idx){
+  _md[mi].imgs.splice(idx,1);
+  if(_md[mi].imgFiles && _md[mi].imgFiles.length>idx) _md[mi].imgFiles.splice(idx,1);
+  renderImgGrid(mi);
+}
+
 function renderImgGrid(mi){
   var imgs=_md[mi].imgs,h='';
   imgs.forEach(function(src,idx){
@@ -600,55 +754,6 @@ function syncQ(mi,qi,f,v){
 }
 function syncQOpt(mi,qi,j,v){_md[mi].questions[qi].opts[j]=v;}
 
-// ─── SAVE LESSON ──────────────────────────────────────────────────────────────
-function saveLesson(){
-  var title=document.getElementById('ltitle').value.trim();
-  if(!title){alert('Inserisci il titolo.');return;}
-  var code=document.getElementById('lcode').value.trim().toUpperCase();
-  if(!code){alert('Codice mancante.');return;}
-  var dur=parseInt(document.getElementById('ldur').value);
-  var qsec=parseInt(document.getElementById('qsec').value);
-  var n=parseInt(document.getElementById('nsl').value);
-  var modules=[];
-
-  for(var i=0;i<n;i++){
-    var md=_md[i];
-    if(!md||md.imgs.length===0){alert('Modulo '+(i+1)+': carica almeno una slide.');return;}
-    var questions=[];
-    for(var qi=0;qi<md.questions.length;qi++){
-      var q=md.questions[qi];
-      if(!q.q.trim()){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': testo mancante.');return;}
-      var opts=[],correct='';
-      if(q.type==='tf'){
-        opts=['Vero','Falso'];
-        correct=q.correct==='Falso'?'Falso':'Vero';
-      } else {
-        opts=(q.opts||[]).filter(function(v){return v.trim();});
-        if(opts.length<2){alert('Modulo '+(i+1)+', Domanda '+(qi+1)+': inserisci almeno 2 opzioni.');return;}
-        var ci=typeof q.correct==='number'?q.correct:0;
-        correct=q.opts[ci]||q.opts[0];
-      }
-      questions.push({q:q.q,type:q.type,opts:opts,correct:correct});
-    }
-    modules.push({imgs:md.imgs,questions:questions});
-  }
-
-  lessons[code]={title:title,code:code,dur:dur,qsec:qsec,modules:modules};
-  persist();
-  renderSavedLessons();
-
-  // Show success
-  alert('✅ Lezione salvata!\n\nCodice: '+code+'\n\nTrovi il codice nella lista "Lezioni salvate" sopra.\nPuoi anche cliccare "Avvia" per iniziare direttamente come studente.');
-
-  // Reset for next lesson
-  _md={};
-  document.getElementById('ltitle').value='';
-  document.getElementById('lcode').value=genCode();
-  document.getElementById('nsl').value=1;
-  document.getElementById('nslv').textContent=1;
-  renderModBuilder();
-}
-
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function doLogin(){
   var name=document.getElementById('ln').value.trim();
@@ -668,7 +773,7 @@ function doLogin(){
   err.style.display='none';
   S.user={name:name,store:store};
   S.lesson=lesson;
-  S.curMod=0;S.curQ=0;S.allAnswers=[];
+  S.curMod=0;S.curQ=0;S.allAnswers=[];S.lastResult=null;
   startLesson();
 }
 
@@ -729,7 +834,6 @@ function slideNav(dir){
   renderSlideViewer();
 }
 function goSlide(i){S.curSlide=i;renderSlideViewer();}
-
 function startQuiz(){S.curQ=0;showQuestion();}
 
 function showQuestion(){
@@ -837,7 +941,7 @@ function viewOverlay(imgIdx){
 }
 
 // ─── END ──────────────────────────────────────────────────────────────────────
-function endLesson(){
+async function endLesson(){
   clearInterval(S.gInt);clearInterval(S.qInt);
   var tot=totQs(),ok=S.allAnswers.filter(function(a){return a.correct;}).length;
   var to=S.allAnswers.filter(function(a){return a.timedOut;}).length;
@@ -846,7 +950,8 @@ function endLesson(){
   var res={user:S.user.name,store:S.user.store,lesson:S.lesson.title,code:S.lesson.code,
     ok:ok,tot:tot,pct:pct,to:to,date:new Date().toLocaleString('it-IT'),
     timeStr:mins+'m '+secs+'s',answers:JSON.parse(JSON.stringify(S.allAnswers))};
-  results.push(res);
+  S.lastResult=res;
+
   document.getElementById('rs-sub').textContent=S.user.name+' · '+S.user.store;
   document.getElementById('rs-metrics').innerHTML=
     '<div class="metric"><div class="mv">'+ok+'/'+tot+'</div><div class="ml">Corrette</div></div>'
@@ -867,7 +972,10 @@ function endLesson(){
   });
   bd+='</div>';
   document.getElementById('rs-detail').innerHTML=bd;
-  show('results');renderResults();renderRank();
+  show('results');
+
+  // Save to Supabase
+  await saveResult(res);
 }
 
 // ─── ADMIN RENDERING ──────────────────────────────────────────────────────────
@@ -877,7 +985,7 @@ function renderResults(){
   el.innerHTML=results.map(function(r,i){
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--br);font-size:13px">'
       +'<div><div class="f600">'+esc(r.user)+' <span class="mu" style="font-weight:400">· '+esc(r.store)+'</span></div>'
-      +'<div class="mu" style="margin-top:3px">'+esc(r.lesson)+' ('+r.code+') · '+r.date+' · '+r.timeStr+'</div></div>'
+      +'<div class="mu" style="margin-top:3px">'+esc(r.lesson)+' ('+esc(r.code)+') · '+r.date+' · '+r.timeStr+'</div></div>'
       +'<div style="display:flex;gap:10px;align-items:center">'
       +'<div style="text-align:right"><div class="f600" style="color:'+(r.pct>=70?'var(--ac)':'var(--dng)')+'">'+r.pct+'%</div>'
       +'<div class="mu">'+r.ok+'/'+r.tot+'</div></div>'
@@ -885,12 +993,14 @@ function renderResults(){
       +'</div></div>';
   }).join('');
 }
+
 function renderRankFilter(){
   var sel=document.getElementById('rank-filter'),cur=sel.value;
   sel.innerHTML='<option value="">Tutti gli store</option>';
-  stores.forEach(function(s){var o=document.createElement('option');o.value=s;o.textContent=s;sel.appendChild(o);});
+  stores.forEach(function(s){var o=document.createElement('option');o.value=s.name;o.textContent=s.name;sel.appendChild(o);});
   sel.value=cur;
 }
+
 function renderRank(){
   var fStore=document.getElementById('rank-filter').value,el=document.getElementById('rank-body');
   var data=fStore?results.filter(function(r){return r.store===fStore;}):results;
@@ -954,7 +1064,12 @@ function buildPDF(r){
   doc.text('FormArreda · '+new Date().toLocaleString('it-IT'),14,ph-4);
   return doc;
 }
-function exportMyPDF(){if(!results.length)return;var r=results[results.length-1];buildPDF(r).save('FormArreda_'+r.user.replace(/\s/g,'_')+'.pdf');}
+function exportMyPDF(){
+  var r=S.lastResult;
+  if(!r&&results.length) r=results[0];
+  if(!r) return;
+  buildPDF(r).save('FormArreda_'+r.user.replace(/\s/g,'_')+'.pdf');
+}
 function exportOnePDF(i){buildPDF(results[i]).save('FormArreda_'+results[i].user.replace(/\s/g,'_')+'.pdf');}
 function exportAllPDF(){
   if(!results.length){alert('Nessun risultato.');return;}
@@ -984,7 +1099,7 @@ function exportAllPDF(){
 }
 
 // ─── DEMO ─────────────────────────────────────────────────────────────────────
-(function(){
+function addDemoLesson(){
   function svg(label,color){
     var s='<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="'+color+'"/><text x="400" y="210" text-anchor="middle" font-family="system-ui" font-size="38" font-weight="bold" fill="white">'+label+'</text><text x="400" y="260" text-anchor="middle" font-family="system-ui" font-size="16" fill="rgba(255,255,255,0.7)">FormArreda Demo</text></svg>';
     return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
@@ -1003,16 +1118,21 @@ function exportAllPDF(){
         {q:"Con l'Estroverso devo ascoltarlo e renderlo protagonista della trattativa?",type:'tf',opts:['Vero','Falso'],correct:'Vero'}
       ]}
     ]};
-})();
+}
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-hydrate();
-populateSel();
-renderLoginLessons();
-renderModBuilder();
-renderStoresList();
-renderSavedLessons();
-document.getElementById('lcode').value=genCode();
+(async function(){
+  showLoad('Connessione a Supabase...');
+  await loadStores();
+  await loadLessons();
+  hideLoad();
+  populateSel();
+  renderLoginLessons();
+  renderModBuilder();
+  renderStoresList();
+  renderSavedLessons();
+  document.getElementById('lcode').value=genCode();
+})();
 </script>
 </body>
 </html>
