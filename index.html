@@ -458,9 +458,9 @@ async function saveLesson(){
     for(var fi=0;fi<md.imgFiles.length;fi++){
       var file=md.imgFiles[fi];
       var path=code+'/mod'+i+'/'+Date.now()+'_'+fi+'_'+file.name.replace(/[^a-zA-Z0-9.]/g,'_');
-      var {data:upData,error:upErr}=await sb.storage.from('slides').upload(path,file,{upsert:true});
+      var {data:upData,error:upErr}=await sb.storage.from('Formarreda').upload(path,file,{upsert:true});
       if(upErr){hideLoad();alert('Errore upload immagine: '+upErr.message);return;}
-      var {data:urlData}=sb.storage.from('slides').getPublicUrl(path);
+      var {data:urlData}=sb.storage.from('Formarreda').getPublicUrl(path);
       imgUrls.push(urlData.publicUrl);
     }
 
