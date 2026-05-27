@@ -506,13 +506,17 @@ async function saveLesson(){
 
 async function deleteLesson(code){
   var l=lessons[code];
-  if(!l||!l.id){delete lessons[code];renderSavedLessons();return;}
-  if(!confirm('Eliminare "'+l.title+'" ('+code+')?')) return;
-  showLoad('Eliminazione...');
-  await sb.from('lessons').delete().eq('id',l.id);
+  if(!l){renderSavedLessons();return;}
+  if(!window.confirm('Eliminare "'+l.title+'" ('+code+')?')) return;
+  showLoad('Eliminazione in corso...');
+  if(l.id){
+    var {error}=await sb.from('lessons').delete().eq('id',l.id);
+    if(error){hideLoad();alert('Errore eliminazione: '+error.message);return;}
+  }
   hideLoad();
   delete lessons[code];
   renderSavedLessons();
+  renderLoginLessons();
 }
 
 // ─── SUPABASE: RESULTS ───────────────────────────────────────────────────────
