@@ -101,6 +101,21 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
 .mu{color:var(--mu)}.sm-tx{font-size:13px}.f600{font-weight:600}.wf{width:100%}
 /* Loading overlay */
 #loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+/* Modal overlay */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:8000;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal-box{background:var(--cb);border-radius:14px;padding:1.75rem;max-width:400px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+.modal-box h3{font-size:16px;font-weight:700;margin-bottom:.5rem}
+.modal-box p{font-size:13px;color:var(--mu);margin-bottom:1.25rem}
+/* Live tab */
+.live-badge{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#fff;background:var(--dng);padding:3px 9px;border-radius:99px;vertical-align:middle;margin-left:6px}
+.live-badge::before{content:'';width:7px;height:7px;border-radius:50%;background:#fff;animation:livepulse 1.2s ease-in-out infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.3}}
+.participant-row{border:1px solid var(--br);border-radius:10px;padding:.875rem 1rem;margin-bottom:.6rem;background:var(--cb)}
+.participant-row .pr-name{font-size:14px;font-weight:600}
+.participant-row .pr-meta{font-size:12px;color:var(--mu);margin-top:2px}
+.participant-row .pr-bar{margin-top:.5rem}
+.pbar-sm{background:#e0e0e0;border-radius:99px;height:5px;overflow:hidden}
+.pfill-sm{height:100%;background:var(--ac);border-radius:99px;transition:width .4s}
 .spinner{width:36px;height:36px;border:3px solid var(--ac-l);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #loading-overlay p{font-size:14px;color:var(--mu)}
@@ -113,6 +128,36 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
 <div id="loading-overlay" style="display:none">
   <div class="spinner"></div>
   <p id="loading-msg">Caricamento...</p>
+</div>
+
+<!-- MODAL: PASSWORD FORMATORE -->
+<div class="modal-overlay" id="modal-pwd" style="display:none">
+  <div class="modal-box">
+    <h3>🔒 Accesso formatore</h3>
+    <p>Inserisci la password per accedere al pannello.</p>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="pwd-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkPwd()">
+    </div>
+    <div id="pwd-err" style="color:var(--dng);font-size:13px;display:none;margin-bottom:.875rem;padding:8px 12px;background:var(--dng-l);border-radius:7px;border:1px solid var(--dng)">Password errata.</div>
+    <div class="flex gap2 jb">
+      <button class="btn" onclick="closePwdModal()">Annulla</button>
+      <button class="btn pr" onclick="checkPwd()"><i class="ti ti-lock-open"></i> Accedi</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CHI SEI? (nome consulente) -->
+<div class="modal-overlay" id="modal-name" style="display:none">
+  <div class="modal-box">
+    <h3>👤 Chi sei?</h3>
+    <p>Inserisci il tuo nome e cognome. Verrà salvato automaticamente per i prossimi accessi.</p>
+    <div class="field">
+      <input type="text" id="name-input" placeholder="es. Mario Rossi" autocomplete="name" onkeydown="if(event.key==='Enter')saveName()">
+    </div>
+    <div id="name-err" style="color:var(--dng);font-size:13px;display:none;margin-bottom:.875rem">Inserisci nome e cognome.</div>
+    <button class="btn pr wf" onclick="saveName()"><i class="ti ti-check"></i> Conferma</button>
+  </div>
 </div>
 
 <div class="app">
@@ -128,7 +173,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       <div class="ch"><i class="ti ti-login"></i><h2>Accesso studente</h2></div>
       <div class="field">
         <label>Nome e cognome</label>
-        <input type="text" id="ln" placeholder="es. Mario Rossi" autocomplete="name">
+        <div class="flex gap2 ac">
+          <input type="text" id="ln" placeholder="es. Mario Rossi" autocomplete="name" style="flex:1">
+          <button class="btn sm" id="btn-change-name" onclick="showNameModal(true)" style="white-space:nowrap;display:none"><i class="ti ti-pencil"></i> Cambia</button>
+        </div>
       </div>
       <div class="field">
         <label>Store di riferimento</label>
@@ -148,7 +196,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     </div>
 
     <div style="text-align:center;margin-top:1rem">
-      <button class="btn sm" onclick="goAdmin()"><i class="ti ti-settings"></i> Accesso formatore</button>
+      <button class="btn sm" onclick="openPwdModal()"><i class="ti ti-settings"></i> Accesso formatore</button>
     </div>
     <div style="text-align:center;margin-top:.75rem;font-size:12px;color:var(--mu)">
       Demo disponibile — codice: <strong>DEMO-001</strong>
@@ -164,6 +212,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     <button class="tab" id="tab-stores" onclick="aTab('stores')"><i class="ti ti-building-store"></i> Store</button>
     <button class="tab" id="tab-results" onclick="aTab('results')"><i class="ti ti-chart-bar"></i> Risultati</button>
     <button class="tab" id="tab-rank" onclick="aTab('rank')"><i class="ti ti-trophy"></i> Classifica</button>
+    <button class="tab" id="tab-live" onclick="aTab('live')"><i class="ti ti-radio"></i> Live<span class="live-badge" id="live-count-badge">0</span></button>
   </div>
 
   <!-- LESSONS TAB -->
@@ -224,6 +273,11 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       </div>
       <div class="stores-wrap" id="stores-list"></div>
     </div>
+    <div class="card" style="margin-top:0">
+      <div class="ch"><i class="ti ti-lock"></i><h2>Sicurezza</h2></div>
+      <p class="sm-tx mu" style="margin-bottom:.875rem">Cambia la password di accesso al pannello formatore.</p>
+      <button class="btn" onclick="promptChangePwd()"><i class="ti ti-key"></i> Cambia password</button>
+    </div>
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
 
@@ -249,6 +303,20 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
         </div>
       </div>
       <div id="rank-body"><div class="mu sm-tx">Caricamento...</div></div>
+    </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+
+  <!-- LIVE TAB -->
+  <div id="ap-live" style="display:none">
+    <div class="card">
+      <div class="ch">
+        <i class="ti ti-radio"></i>
+        <h2>Monitor in diretta</h2>
+        <span class="live-badge" style="margin-left:8px" id="live-badge-panel">0</span>
+        <span class="mu sm-tx" style="margin-left:auto;font-size:12px">Aggiornamento ogni 10s</span>
+      </div>
+      <div id="live-body"><div class="mu sm-tx">Nessun partecipante online.</div></div>
     </div>
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
@@ -556,6 +624,7 @@ function show(id){
 }
 
 async function goLogin(){
+  stopLivePolling();
   showLoad('Caricamento...');
   await loadStores();
   await loadLessons();
@@ -563,6 +632,7 @@ async function goLogin(){
   populateSel();
   renderLoginLessons();
   show('login');
+  initLoginName();
 }
 
 async function goAdmin(){
@@ -579,18 +649,179 @@ async function goAdmin(){
   renderRank();
   renderRankFilter();
   document.getElementById('lcode').value=genCode();
+  startLivePolling();
 }
 
 function aTab(t){
-  ['lessons','stores','results','rank'].forEach(function(x){
+  ['lessons','stores','results','rank','live'].forEach(function(x){
     document.getElementById('ap-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
+  if(t==='live') renderLive();
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
 function genCode(){ return 'ARR-'+String(Math.floor(Math.random()*999)+1).padStart(3,'0'); }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// ─── PASSWORD FORMATORE ───────────────────────────────────────────────────────
+var ADMIN_PWD_KEY = 'formarreda_admin_pwd';
+function getAdminPwd(){ return localStorage.getItem(ADMIN_PWD_KEY) || 'formarreda2025'; }
+function setAdminPwd(p){ localStorage.setItem(ADMIN_PWD_KEY, p); }
+
+function openPwdModal(){
+  document.getElementById('pwd-input').value='';
+  document.getElementById('pwd-err').style.display='none';
+  document.getElementById('modal-pwd').style.display='flex';
+  setTimeout(function(){ document.getElementById('pwd-input').focus(); }, 100);
+}
+function closePwdModal(){
+  document.getElementById('modal-pwd').style.display='none';
+}
+function checkPwd(){
+  var v = document.getElementById('pwd-input').value;
+  if(v === getAdminPwd()){
+    closePwdModal();
+    goAdmin();
+  } else {
+    document.getElementById('pwd-err').style.display='block';
+    document.getElementById('pwd-input').value='';
+    document.getElementById('pwd-input').focus();
+  }
+}
+
+// Called from "Cambia password" in Store tab
+function promptChangePwd(){
+  var np = window.prompt('Nuova password (minimo 6 caratteri):');
+  if(np===null) return;
+  if(!np || np.length < 6){ alert('Password troppo corta.'); return; }
+  setAdminPwd(np);
+  alert('✅ Password aggiornata!');
+}
+
+// ─── NOME CONSULENTE ──────────────────────────────────────────────────────────
+var CONSULTANT_NAME_KEY = 'formarreda_consultant_name';
+function getSavedName(){ return localStorage.getItem(CONSULTANT_NAME_KEY) || ''; }
+function saveNameToStorage(n){ localStorage.setItem(CONSULTANT_NAME_KEY, n); }
+
+function initLoginName(){
+  var saved = getSavedName();
+  var lnEl = document.getElementById('ln');
+  var btnChange = document.getElementById('btn-change-name');
+  if(saved){
+    lnEl.value = saved;
+    lnEl.readOnly = true;
+    lnEl.style.background = 'var(--sf)';
+    btnChange.style.display = 'inline-flex';
+  } else {
+    showNameModal(false);
+  }
+}
+
+function showNameModal(allowCancel){
+  var inp = document.getElementById('name-input');
+  inp.value = getSavedName();
+  document.getElementById('name-err').style.display='none';
+  document.getElementById('modal-name').style.display='flex';
+  // If first time, can't cancel
+  var cancelBtn = document.querySelector('#modal-name .btn:not(.pr)');
+  if(cancelBtn) cancelBtn.style.display = allowCancel ? 'inline-flex' : 'none';
+  setTimeout(function(){ inp.focus(); }, 100);
+}
+function closeNameModal(){ document.getElementById('modal-name').style.display='none'; }
+
+function saveName(){
+  var v = document.getElementById('name-input').value.trim();
+  if(!v){ document.getElementById('name-err').style.display='block'; return; }
+  saveNameToStorage(v);
+  var lnEl = document.getElementById('ln');
+  lnEl.value = v;
+  lnEl.readOnly = true;
+  lnEl.style.background = 'var(--sf)';
+  document.getElementById('btn-change-name').style.display='inline-flex';
+  closeNameModal();
+}
+
+// ─── LIVE MONITOR ─────────────────────────────────────────────────────────────
+var liveInterval = null;
+
+// Student heartbeat: send presence to supabase every 8s while in lesson
+var heartbeatInterval = null;
+function startHeartbeat(){
+  stopHeartbeat();
+  sendHeartbeat();
+  heartbeatInterval = setInterval(sendHeartbeat, 8000);
+}
+function stopHeartbeat(){
+  clearInterval(heartbeatInterval);
+  heartbeatInterval = null;
+  // Mark as offline
+  if(S.user && S.user.name){
+    sb.from('live_participants').delete()
+      .eq('user_name', S.user.name)
+      .eq('store', S.user.store)
+      .then(function(){});
+  }
+}
+async function sendHeartbeat(){
+  if(!S.lesson || !S.user.name) return;
+  var mod = S.lesson.modules[S.curMod];
+  var qObj = mod && mod.questions[S.curQ];
+  var phase = document.getElementById('lp').style.display!=='none' ? 'slide' : 'quiz';
+  var info = {
+    user_name: S.user.name,
+    store: S.user.store,
+    lesson_title: S.lesson.title,
+    lesson_code: S.lesson.code,
+    mod_idx: S.curMod,
+    q_idx: phase==='quiz' ? S.curQ : null,
+    phase: phase,
+    progress: S.lesson ? Math.round(S.allAnswers.length / totQs() * 100) : 0,
+    last_seen: new Date().toISOString()
+  };
+  await sb.from('live_participants').upsert(info, {onConflict:'user_name,store'});
+}
+
+async function renderLive(){
+  var body = document.getElementById('live-body');
+  body.innerHTML='<div class="mu sm-tx">Caricamento partecipanti...</div>';
+  // Fetch participants active in last 30s
+  var cutoff = new Date(Date.now() - 30000).toISOString();
+  var {data, error} = await sb.from('live_participants').select('*').gte('last_seen', cutoff).order('last_seen', {ascending:false});
+  if(error){ body.innerHTML='<div class="mu sm-tx">Errore caricamento.</div>'; return; }
+  var count = data ? data.length : 0;
+  document.getElementById('live-badge-panel').textContent = count;
+  document.getElementById('live-count-badge').textContent = count;
+  if(!count){ body.innerHTML='<div class="mu sm-tx" style="padding:.5rem 0">Nessun partecipante online in questo momento.</div>'; return; }
+  body.innerHTML = data.map(function(p){
+    var phase = p.phase==='slide' ? '📖 Slide — Modulo '+(p.mod_idx+1) : '❓ Domanda '+(p.q_idx+1)+' — Modulo '+(p.mod_idx+1);
+    var ago = Math.round((Date.now() - new Date(p.last_seen).getTime()) / 1000);
+    var pct = p.progress || 0;
+    return '<div class="participant-row">'
+      +'<div class="flex jb ac">'
+      +'<div><div class="pr-name">'+esc(p.user_name)+'</div>'
+      +'<div class="pr-meta">'+esc(p.store)+' · '+esc(p.lesson_title||p.lesson_code)+' · '+phase+'</div></div>'
+      +'<span style="font-size:12px;color:var(--mu)">'+ago+'s fa</span></div>'
+      +'<div class="pr-bar"><div class="pbar-sm"><div class="pfill-sm" style="width:'+pct+'%"></div></div>'
+      +'<div style="font-size:11px;color:var(--mu);margin-top:3px">Progresso: '+pct+'%</div></div>'
+      +'</div>';
+  }).join('');
+}
+
+function startLivePolling(){
+  stopLivePolling();
+  liveInterval = setInterval(function(){
+    // Update badge from DB every 10s even if not on live tab
+    var cutoff = new Date(Date.now() - 30000).toISOString();
+    sb.from('live_participants').select('user_name').gte('last_seen', cutoff).then(function(res){
+      var c = (res.data||[]).length;
+      document.getElementById('live-count-badge').textContent = c;
+      // If live tab is open, refresh
+      if(document.getElementById('ap-live').style.display==='block') renderLive();
+    });
+  }, 10000);
+}
+function stopLivePolling(){ clearInterval(liveInterval); liveInterval = null; }
 
 // ─── STORES UI ────────────────────────────────────────────────────────────────
 function populateSel(){
@@ -760,12 +991,19 @@ function syncQOpt(mi,qi,j,v){_md[mi].questions[qi].opts[j]=v;}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function doLogin(){
-  var name=document.getElementById('ln').value.trim();
+  var lnEl=document.getElementById('ln');
+  // If field is readOnly, unlock to read value
+  lnEl.readOnly=false;
+  var name=lnEl.value.trim();
   var store=document.getElementById('ls').value;
   var code=document.getElementById('lc').value.trim().toUpperCase();
   var err=document.getElementById('lerr');
 
-  if(!name){err.textContent='Inserisci nome e cognome.';err.style.display='block';return;}
+  if(!name){
+    // If no name at all, prompt name modal first
+    showNameModal(false);
+    err.textContent='Inserisci nome e cognome.';err.style.display='block';return;
+  }
   if(!store){err.textContent='Seleziona lo store.';err.style.display='block';return;}
   if(!code){err.textContent='Inserisci il codice lezione.';err.style.display='block';return;}
 
@@ -774,6 +1012,10 @@ function doLogin(){
     err.textContent='Codice "'+code+'" non trovato. Codici disponibili: '+(Object.keys(lessons).join(', ')||'nessuno');
     err.style.display='block';return;
   }
+
+  // Save name for next time
+  saveNameToStorage(name);
+
   err.style.display='none';
   S.user={name:name,store:store};
   S.lesson=lesson;
@@ -792,6 +1034,7 @@ function startLesson(){
   clearInterval(S.gInt);
   S.gInt=setInterval(function(){S.gSec--;updGTimer();if(S.gSec<=0){clearInterval(S.gInt);endLesson();}},1000);
   updGTimer();showSlides();
+  startHeartbeat();
 }
 function updGTimer(){
   var m=Math.floor(S.gSec/60),s=S.gSec%60;
@@ -813,6 +1056,7 @@ function showSlides(){
   renderSlideViewer();
   document.getElementById('lp').style.display='block';
   document.getElementById('qp').style.display='none';
+  sendHeartbeat();
 }
 function renderSlideViewer(){
   var mod=S.lesson.modules[S.curMod],imgs=mod.imgs,idx=S.curSlide;
@@ -846,6 +1090,7 @@ function showQuestion(){
   document.getElementById('qp').style.display='block';
   document.getElementById('qp-num').textContent='Modulo '+(S.curMod+1)+' — Dom. '+(S.curQ+1)+' / '+mod.questions.length;
   document.getElementById('q-text').textContent=qObj.q;
+  sendHeartbeat();
 
   var thumbs=document.getElementById('slide-thumbs-row'),rem=document.getElementById('slide-reminder');
   var imgs=mod.imgs||[];
@@ -947,6 +1192,7 @@ function viewOverlay(imgIdx){
 // ─── END ──────────────────────────────────────────────────────────────────────
 async function endLesson(){
   clearInterval(S.gInt);clearInterval(S.qInt);
+  stopHeartbeat();
   var tot=totQs(),ok=S.allAnswers.filter(function(a){return a.correct;}).length;
   var to=S.allAnswers.filter(function(a){return a.timedOut;}).length;
   var pct=tot>0?Math.round(ok/tot*100):0;
@@ -1136,6 +1382,7 @@ function addDemoLesson(){
   renderStoresList();
   renderSavedLessons();
   document.getElementById('lcode').value=genCode();
+  initLoginName();
 })();
 </script>
 </body>
