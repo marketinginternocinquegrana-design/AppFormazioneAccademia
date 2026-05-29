@@ -212,16 +212,23 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     <button class="tab" id="tab-stores" onclick="aTab('stores')"><i class="ti ti-building-store"></i> Store</button>
     <button class="tab" id="tab-results" onclick="aTab('results')"><i class="ti ti-chart-bar"></i> Risultati</button>
     <button class="tab" id="tab-rank" onclick="aTab('rank')"><i class="ti ti-trophy"></i> Classifica</button>
+    <button class="tab" id="tab-storico" onclick="aTab('storico')"><i class="ti ti-history"></i> Storico</button>
     <button class="tab" id="tab-live" onclick="aTab('live')"><i class="ti ti-radio"></i> Live<span class="live-badge" id="live-count-badge">0</span></button>
   </div>
 
   <!-- LESSONS TAB -->
   <div id="ap-lessons">
     <div class="admin-notice"><i class="ti ti-info-circle"></i>
-      <span>Carica le <strong>slide PowerPoint</strong> come immagini, aggiungi le domande e salva. Poi dai il codice agli alunni.</span>
+      <span>Carica le <strong>slide PowerPoint</strong> come immagini, aggiungi le domande e salva. Oppure <strong>importa un file .json</strong> creato con il Lesson Builder.</span>
     </div>
     <div class="card" id="saved-lessons-card">
-      <div class="ch"><i class="ti ti-list"></i><h2>Lezioni salvate</h2></div>
+      <div class="ch" style="gap:8px">
+        <i class="ti ti-list"></i><h2 style="flex:1">Lezioni salvate</h2>
+        <label class="btn sm pr" style="cursor:pointer;margin-left:auto" title="Importa lezione da file .json">
+          <i class="ti ti-file-import"></i> Importa .json
+          <input type="file" accept=".json" style="display:none" onchange="importLessonJSON(this)">
+        </label>
+      </div>
       <div id="saved-lessons-list"><div class="mu sm-tx">Caricamento...</div></div>
     </div>
     <div class="card">
@@ -318,6 +325,58 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       </div>
       <div id="live-body"><div class="mu sm-tx">Nessun partecipante online.</div></div>
     </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+
+  <!-- STORICO TAB -->
+  <div id="ap-storico" style="display:none">
+    <!-- Sub-tabs -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">
+      <button class="btn sm" id="stab-sessioni" onclick="sTab('sessioni')" style="border-color:var(--ac);color:var(--ac);background:rgba(201,168,76,.08)"><i class="ti ti-calendar-stats"></i> Sessioni</button>
+      <button class="btn sm" id="stab-arredatori" onclick="sTab('arredatori')"><i class="ti ti-user"></i> Arredatori</button>
+      <button class="btn sm" id="stab-store" onclick="sTab('store')"><i class="ti ti-building-store"></i> Per store</button>
+      <button class="btn sm" id="stab-lezioni" onclick="sTab('lezioni')"><i class="ti ti-book"></i> Per lezione</button>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <select id="storico-lesson-filter" onchange="renderStorico()" style="border:1px solid var(--br);border-radius:8px;padding:5px 10px;font-size:12px;background:var(--cb);color:var(--tx);font-family:inherit">
+          <option value="">Tutte le lezioni</option>
+        </select>
+        <select id="storico-store-filter" onchange="renderStorico()" style="border:1px solid var(--br);border-radius:8px;padding:5px 10px;font-size:12px;background:var(--cb);color:var(--tx);font-family:inherit">
+          <option value="">Tutti gli store</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Sessioni -->
+    <div id="spanel-sessioni">
+      <div class="card">
+        <div class="ch"><i class="ti ti-calendar-stats"></i><h2>Storico sessioni</h2><span class="mu sm-tx" style="margin-left:auto;font-size:12px" id="sessioni-count"></span></div>
+        <div id="sessioni-body"><div class="mu sm-tx">Caricamento...</div></div>
+      </div>
+    </div>
+
+    <!-- Arredatori -->
+    <div id="spanel-arredatori" style="display:none">
+      <div class="card">
+        <div class="ch"><i class="ti ti-user"></i><h2>Scheda arredatori</h2></div>
+        <div style="margin-bottom:.875rem">
+          <select id="arredatore-sel" onchange="renderArredatore()" style="border:1px solid var(--br);border-radius:8px;padding:6px 10px;font-size:13px;background:var(--cb);color:var(--tx);font-family:inherit;width:100%">
+            <option value="">— Seleziona un arredatore —</option>
+          </select>
+        </div>
+        <div id="arredatore-body"></div>
+      </div>
+    </div>
+
+    <!-- Per store -->
+    <div id="spanel-store" style="display:none">
+      <div id="store-cards-body"></div>
+    </div>
+
+    <!-- Per lezione -->
+    <div id="spanel-lezioni" style="display:none">
+      <div id="lezione-cards-body"></div>
+    </div>
+
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
 </div>
@@ -648,16 +707,18 @@ async function goAdmin(){
   renderResults();
   renderRank();
   renderRankFilter();
+  renderStoricoFilters();
   document.getElementById('lcode').value=genCode();
   startLivePolling();
 }
 
 function aTab(t){
-  ['lessons','stores','results','rank','live'].forEach(function(x){
+  ['lessons','stores','results','rank','storico','live'].forEach(function(x){
     document.getElementById('ap-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
   if(t==='live') renderLive();
+  if(t==='storico'){ renderStoricoFilters(); renderStorico(); }
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -1249,6 +1310,242 @@ function renderRankFilter(){
   sel.innerHTML='<option value="">Tutti gli store</option>';
   stores.forEach(function(s){var o=document.createElement('option');o.value=s.name;o.textContent=s.name;sel.appendChild(o);});
   sel.value=cur;
+}
+
+// ─── IMPORT LEZIONE DA JSON ────────────────────────────────────────────────────
+function importLessonJSON(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = async function(e){
+    var lesson;
+    try { lesson = JSON.parse(e.target.result); } catch(err){ alert('File JSON non valido.'); return; }
+
+    // Validate structure
+    if(!lesson.title||!lesson.code||!lesson.sections||!Array.isArray(lesson.sections)){
+      alert('Struttura file non riconosciuta. Usa il Lesson Builder per creare le lezioni.');
+      return;
+    }
+
+    // Convert Lesson Builder format → App format
+    // sections[].slides + sections[].questions(tf/mc) → modules[].imgs + modules[].questions
+    var modules = lesson.sections.map(function(sec){
+      var imgs = (sec.slides||[]).filter(function(sl){ return sl.img; }).map(function(sl){ return sl.img; });
+      var slideTexts = (sec.slides||[]).map(function(sl){ return sl.text||''; });
+      var questions = (sec.questions||[]).map(function(q){
+        if(q.type==='tf'){
+          return { q:q.q, type:'tf', opts:['Vero','Falso'], correct: q.answer===true?'Vero':'Falso' };
+        } else {
+          return { q:q.q, type:'mc', opts:q.opts, correct: q.opts[q.answer]||q.opts[0] };
+        }
+      });
+      return { imgs:imgs, slideTexts:slideTexts, questions:questions };
+    });
+
+    // Check for code conflict
+    if(lessons[lesson.code]){
+      if(!confirm('Esiste già una lezione con codice "'+lesson.code+'". Sovrascrivere?')) return;
+    }
+
+    showLoad('Salvataggio lezione importata...');
+    var {error} = await sb.from('lessons').upsert({
+      code: lesson.code,
+      title: lesson.title,
+      dur: lesson.dur || 60,
+      qsec: lesson.timer || 20,
+      modules: modules
+    },{onConflict:'code'});
+    hideLoad();
+
+    if(error){ alert('Errore salvataggio: '+error.message); return; }
+
+    await loadLessons();
+    renderSavedLessons();
+    renderLoginLessons();
+    alert('✅ Lezione "'+lesson.title+'" importata!\n\nCodice: '+lesson.code+'\n\nSezioni: '+lesson.sections.length);
+    input.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ─── STORICO ──────────────────────────────────────────────────────────────────
+var _curSTab = 'sessioni';
+
+function sTab(t){
+  _curSTab = t;
+  ['sessioni','arredatori','store','lezioni'].forEach(function(x){
+    document.getElementById('spanel-'+x).style.display=x===t?'block':'none';
+    var btn = document.getElementById('stab-'+x);
+    if(t===x){ btn.style.borderColor='var(--ac)'; btn.style.color='var(--ac)'; btn.style.background='rgba(201,168,76,.08)'; }
+    else { btn.style.borderColor=''; btn.style.color=''; btn.style.background=''; }
+  });
+  renderStorico();
+}
+
+function renderStoricoFilters(){
+  var lf = document.getElementById('storico-lesson-filter');
+  var sf = document.getElementById('storico-store-filter');
+  var curL = lf.value, curS = sf.value;
+  lf.innerHTML='<option value="">Tutte le lezioni</option>';
+  sf.innerHTML='<option value="">Tutti gli store</option>';
+  var lessonTitles = {};
+  results.forEach(function(r){ lessonTitles[r.code]=r.lesson; });
+  Object.keys(lessonTitles).forEach(function(code){
+    lf.innerHTML+='<option value="'+esc(code)+'">'+esc(lessonTitles[code])+'</option>';
+  });
+  stores.forEach(function(s){ sf.innerHTML+='<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>'; });
+  lf.value=curL; sf.value=curS;
+
+  // Populate arredatori selector
+  var arSel = document.getElementById('arredatore-sel');
+  var curAr = arSel.value;
+  var arSet = {};
+  results.forEach(function(r){ arSet[r.user+'|'+r.store]={name:r.user,store:r.store}; });
+  arSel.innerHTML='<option value="">— Seleziona un arredatore —</option>';
+  Object.values(arSet).sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(ar){
+    arSel.innerHTML+='<option value="'+esc(ar.name+'|'+ar.store)+'">'+esc(ar.name)+' ('+esc(ar.store)+')</option>';
+  });
+  arSel.value=curAr;
+}
+
+function getFilteredResults(){
+  var lf = document.getElementById('storico-lesson-filter').value;
+  var sf = document.getElementById('storico-store-filter').value;
+  return results.filter(function(r){
+    return (!lf || r.code===lf) && (!sf || r.store===sf);
+  });
+}
+
+function renderStorico(){
+  var data = getFilteredResults();
+  if(_curSTab==='sessioni') renderStoricoSessioni(data);
+  else if(_curSTab==='arredatori') renderArredatore();
+  else if(_curSTab==='store') renderStoricoStore(data);
+  else if(_curSTab==='lezioni') renderStoricoLezioni(data);
+}
+
+function renderStoricoSessioni(data){
+  var el = document.getElementById('sessioni-body');
+  document.getElementById('sessioni-count').textContent = data.length + ' sessioni';
+  if(!data.length){ el.innerHTML='<div class="mu sm-tx">Nessuna sessione registrata.</div>'; return; }
+  el.innerHTML = data.map(function(r,i){
+    var pctColor = r.pct>=70?'var(--ac)':'var(--dng)';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--br);font-size:13px">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="f600" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(r.user)+'</div>'
+      +'<div class="mu" style="margin-top:2px;font-size:12px">'+esc(r.store)+' · '+esc(r.lesson)+' · '+r.date+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;align-items:center;flex-shrink:0;margin-left:1rem">'
+      +'<div style="text-align:right">'
+      +'<div class="f600" style="color:'+pctColor+'">'+r.pct+'%</div>'
+      +'<div class="mu" style="font-size:11px">'+r.ok+'/'+r.tot+' · '+r.timeStr+'</div>'
+      +'</div>'
+      +'<button class="btn sm" onclick="exportOnePDF('+i+')" title="Esporta PDF"><i class="ti ti-file-export"></i></button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function renderArredatore(){
+  var key = document.getElementById('arredatore-sel').value;
+  var el = document.getElementById('arredatore-body');
+  if(!key){ el.innerHTML=''; return; }
+  var parts = key.split('|');
+  var arName = parts[0], arStore = parts[1];
+  var data = results.filter(function(r){ return r.user===arName && r.store===arStore; });
+  if(!data.length){ el.innerHTML='<div class="mu sm-tx">Nessuna sessione per questo arredatore.</div>'; return; }
+
+  var totalSessions = data.length;
+  var avgPct = Math.round(data.reduce(function(a,r){return a+r.pct;},0)/totalSessions);
+  var bestPct = Math.max.apply(null, data.map(function(r){return r.pct;}));
+  var totalOk = data.reduce(function(a,r){return a+r.ok;},0);
+  var totalTot = data.reduce(function(a,r){return a+r.tot;},0);
+
+  var html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:.75rem;margin-bottom:1.25rem">'
+    + statCard(totalSessions,'Sessioni','var(--tx)')
+    + statCard(avgPct+'%','Media','var(--ac)')
+    + statCard(bestPct+'%','Migliore','var(--suc)')
+    + statCard(totalOk+'/'+totalTot,'Risposte','var(--info)')
+    +'</div>';
+
+  // Progress chart per lezione
+  var byLesson = {};
+  data.forEach(function(r){ if(!byLesson[r.lesson]) byLesson[r.lesson]=[]; byLesson[r.lesson].push(r); });
+  html += '<div class="mu sm-tx f600" style="text-transform:uppercase;letter-spacing:.06em;font-size:11px;margin-bottom:.75rem">Progressione per lezione</div>';
+  Object.keys(byLesson).forEach(function(lesson){
+    var sessions = byLesson[lesson];
+    var last = sessions[sessions.length-1].pct;
+    var first = sessions[0].pct;
+    var trend = last>first?'↑':last<first?'↓':'→';
+    var tColor = last>first?'var(--suc)':last<first?'var(--dng)':'var(--mu)';
+    html += '<div style="margin-bottom:.875rem;padding:.875rem;background:var(--sf);border-radius:9px;border:1px solid var(--br)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">'
+      +'<div style="font-size:13px;font-weight:600">'+esc(lesson)+'</div>'
+      +'<span style="color:'+tColor+';font-weight:700">'+trend+' '+last+'%</span></div>'
+      +'<div style="display:flex;gap:4px;align-items:flex-end;height:32px">'
+      + sessions.map(function(s){
+          var h=Math.max(4,Math.round(s.pct/100*32));
+          var c=s.pct>=70?'var(--ac)':'var(--dng)';
+          return '<div style="flex:1;max-width:24px;height:'+h+'px;background:'+c+';border-radius:3px 3px 0 0;cursor:default" title="'+s.date+': '+s.pct+'%"></div>';
+        }).join('')
+      +'</div>'
+      +'<div class="mu" style="font-size:11px;margin-top:4px">'+sessions.length+' session'+(sessions.length===1?'e':'i')+'</div>'
+      +'</div>';
+  });
+  el.innerHTML = html;
+}
+
+function renderStoricoStore(data){
+  var el = document.getElementById('store-cards-body');
+  if(!data.length){ el.innerHTML='<div class="card"><div class="mu sm-tx">Nessun dato disponibile.</div></div>'; return; }
+  var byStore = {};
+  data.forEach(function(r){
+    if(!byStore[r.store]) byStore[r.store]={store:r.store,sessions:0,totalPct:0,bestPct:0,users:new Set(),lessons:new Set()};
+    var s=byStore[r.store]; s.sessions++; s.totalPct+=r.pct; s.bestPct=Math.max(s.bestPct,r.pct);
+    s.users.add(r.user); s.lessons.add(r.lesson);
+  });
+  el.innerHTML = Object.values(byStore).sort(function(a,b){return(b.totalPct/b.sessions)-(a.totalPct/a.sessions);}).map(function(s){
+    var avg=Math.round(s.totalPct/s.sessions);
+    return '<div class="card" style="margin-bottom:.875rem">'
+      +'<div class="ch"><i class="ti ti-building-store"></i><h2>'+esc(s.store)+'</h2>'
+      +'<span style="margin-left:auto;font-size:18px;font-weight:700;color:'+(avg>=70?'var(--ac)':'var(--dng)')+'">'+avg+'%</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
+      + statCard(s.sessions,'Sessioni','var(--tx)')
+      + statCard(s.users.size,'Arredatori','var(--info)')
+      + statCard(s.lessons.size,'Lezioni','var(--mu)')
+      + statCard(s.bestPct+'%','Record','var(--suc)')
+      +'</div></div>';
+  }).join('');
+}
+
+function renderStoricoLezioni(data){
+  var el = document.getElementById('lezione-cards-body');
+  if(!data.length){ el.innerHTML='<div class="card"><div class="mu sm-tx">Nessun dato disponibile.</div></div>'; return; }
+  var byLesson = {};
+  data.forEach(function(r){
+    if(!byLesson[r.code]) byLesson[r.code]={title:r.lesson,code:r.code,sessions:0,totalPct:0,bestPct:0,users:new Set(),stores:new Set()};
+    var l=byLesson[r.code]; l.sessions++; l.totalPct+=r.pct; l.bestPct=Math.max(l.bestPct,r.pct);
+    l.users.add(r.user); l.stores.add(r.store);
+  });
+  el.innerHTML = Object.values(byLesson).sort(function(a,b){return b.sessions-a.sessions;}).map(function(l){
+    var avg=Math.round(l.totalPct/l.sessions);
+    return '<div class="card" style="margin-bottom:.875rem">'
+      +'<div class="ch"><i class="ti ti-book"></i><h2 style="flex:1">'+esc(l.title)+'</h2>'
+      +'<span class="lcode-tag">'+esc(l.code)+'</span>'
+      +'<span style="margin-left:.75rem;font-size:18px;font-weight:700;color:'+(avg>=70?'var(--ac)':'var(--dng)')+'">'+avg+'%</span></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
+      + statCard(l.sessions,'Sessioni','var(--tx)')
+      + statCard(l.users.size,'Arredatori','var(--info)')
+      + statCard(l.stores.size,'Store','var(--mu)')
+      + statCard(l.bestPct+'%','Record','var(--suc)')
+      +'</div></div>';
+  }).join('');
+}
+
+function statCard(val,lbl,color){
+  return '<div style="text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:.625rem .5rem">'
+    +'<div style="font-size:16px;font-weight:700;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+lbl+'</div>'
+    +'</div>';
 }
 
 function renderRank(){
