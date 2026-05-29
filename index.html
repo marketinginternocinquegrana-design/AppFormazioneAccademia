@@ -500,7 +500,7 @@ var S = {
 
 // ─── SUPABASE: STORES ─────────────────────────────────────────────────────────
 async function loadStores(){
-  var {data,error}=await sb.from('stores').select('*').order('name');
+  var {data,error}=await sb.from('Negozi').select('*').order('name');
   if(error){console.error(error);return;}
   stores=data.map(function(r){return {id:r.id,name:r.name};});
 }
@@ -510,7 +510,7 @@ async function addStore(){
   if(!val){alert('Inserisci nome store.');return;}
   if(stores.find(function(s){return s.name===val;})){alert('Store già esistente.');return;}
   showLoad('Salvataggio store...');
-  var {data,error}=await sb.from('stores').insert({name:val}).select().single();
+  var {data,error}=await sb.from('Negozi').insert({name:val}).select().single();
   hideLoad();
   if(error){alert('Errore: '+error.message);return;}
   stores.push({id:data.id,name:data.name});
@@ -522,7 +522,7 @@ async function addStore(){
 
 async function removeStoreById(id){
   showLoad('Eliminazione store...');
-  var {error}=await sb.from('stores').delete().eq('id',id);
+  var {error}=await sb.from('Negozi').delete().eq('id',id);
   hideLoad();
   if(error){alert('Errore: '+error.message);return;}
   stores=stores.filter(function(s){return s.id!==id;});
@@ -538,13 +538,13 @@ function renderStoresList(){
 
 // ─── SUPABASE: LESSONS ────────────────────────────────────────────────────────
 async function loadLessons(){
-  var {data,error}=await sb.from('lessons').select('*').order('created_at',{ascending:false});
+  var {data,error}=await sb.from('Lezioni').select('*').order('created_at',{ascending:false});
   if(error){console.error(error);return;}
   lessons={};
   data.forEach(function(r){
-    lessons[r.code]={
-      id:r.id, title:r.title, code:r.code,
-      dur:r.dur, qsec:r.qsec, modules:r.modules
+    lessons[r.Codice]={
+      id:r.id, title:r.Titolo, code:r.Codice,
+      dur:r.dur, qsec:r.QSEC, modules:r.Moduli
     };
   });
   // Add demo lesson (local, no DB)
@@ -612,9 +612,9 @@ async function saveLesson(){
   }
 
   showLoad('Salvataggio lezione...');
-  var {error}=await sb.from('lessons').upsert({
-    code:code, title:title, dur:dur, qsec:qsec, modules:modules
-  },{onConflict:'code'});
+  var {error}=await sb.from('Lezioni').upsert({
+    Codice:code, Titolo:title, dur:dur, QSEC:qsec, Moduli:modules
+  },{onConflict:'Codice'});
   hideLoad();
 
   if(error){alert('Errore salvataggio: '+error.message);return;}
@@ -637,7 +637,7 @@ async function deleteLesson(code){
   if(!window.confirm('Eliminare "'+l.title+'" ('+code+')?')) return;
   showLoad('Eliminazione in corso...');
   if(l.id){
-    var {error}=await sb.from('lessons').delete().eq('id',l.id);
+    var {error}=await sb.from('Lezioni').delete().eq('id',l.id);
     if(error){hideLoad();alert('Errore eliminazione: '+error.message);return;}
   }
   hideLoad();
@@ -648,7 +648,7 @@ async function deleteLesson(code){
 
 // ─── SUPABASE: RESULTS ───────────────────────────────────────────────────────
 async function loadResults(){
-  var {data,error}=await sb.from('results').select('*').order('created_at',{ascending:false});
+  var {data,error}=await sb.from('Risultati').select('*').order('created_at',{ascending:false});
   if(error){console.error(error);return;}
   results=data.map(function(r){return {
     user:r.user_name, store:r.store,
@@ -660,7 +660,7 @@ async function loadResults(){
 }
 
 async function saveResult(res){
-  var {error}=await sb.from('results').insert({
+  var {error}=await sb.from('Risultati').insert({
     user_name:res.user, store:res.store,
     lesson_title:res.lesson, lesson_code:res.code,
     ok:res.ok, tot:res.tot, pct:res.pct,
@@ -1348,13 +1348,13 @@ function importLessonJSON(input){
     }
 
     showLoad('Salvataggio lezione importata...');
-    var {error} = await sb.from('lessons').upsert({
-      code: lesson.code,
-      title: lesson.title,
+    var {error} = await sb.from('Lezioni').upsert({
+      Codice: lesson.code,
+      Titolo: lesson.title,
       dur: lesson.dur || 60,
-      qsec: lesson.timer || 20,
-      modules: modules
-    },{onConflict:'code'});
+      QSEC: lesson.timer || 20,
+      Moduli: modules
+    },{onConflict:'Codice'});
     hideLoad();
 
     if(error){ alert('Errore salvataggio: '+error.message); return; }
