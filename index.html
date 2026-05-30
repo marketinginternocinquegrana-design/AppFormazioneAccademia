@@ -542,9 +542,9 @@ async function loadLessons(){
   if(error){console.error(error);return;}
   lessons={};
   data.forEach(function(r){
-    lessons[r.Codice]={
-      id:r.id, title:r.Titolo, code:r.Codice,
-      dur:r.dur, qsec:r.QSEC, modules:r.Moduli
+    lessons[r.code]={
+      id:r.id, title:r.title, code:r.code,
+      dur:r.dur, qsec:r.qsec, modules:r.modules
     };
   });
   // Add demo lesson (local, no DB)
@@ -613,8 +613,8 @@ async function saveLesson(){
 
   showLoad('Salvataggio lezione...');
   var {error}=await sb.from('lessons').upsert({
-    Codice:code, Titolo:title, dur:dur, QSEC:qsec, Moduli:modules
-  },{onConflict:'Codice'});
+    code:code, title:title, dur:dur, qsec:qsec, modules:modules
+  },{onConflict:'code'});
   hideLoad();
 
   if(error){alert('Errore salvataggio: '+error.message);return;}
@@ -1349,12 +1349,12 @@ function importLessonJSON(input){
 
     showLoad('Salvataggio lezione importata...');
     var {error} = await sb.from('lessons').upsert({
-      Codice: lesson.code,
-      Titolo: lesson.title,
+      code: lesson.code,
+      title: lesson.title,
       dur: lesson.dur || 60,
-      QSEC: lesson.timer || 20,
-      Moduli: modules
-    },{onConflict:'Codice'});
+      qsec: lesson.timer || 20,
+      modules: modules
+    },{onConflict:'code'});
     hideLoad();
 
     if(error){ alert('Errore salvataggio: '+error.message); return; }
