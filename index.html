@@ -1533,22 +1533,44 @@ function renderStoricoLezioni(data){
   if(!data.length){ el.innerHTML='<div class="card"><div class="mu sm-tx">Nessun dato disponibile.</div></div>'; return; }
   var byLesson = {};
   data.forEach(function(r){
-    if(!byLesson[r.code]) byLesson[r.code]={title:r.lesson,code:r.code,sessions:0,totalPct:0,bestPct:0,users:new Set(),stores:new Set()};
+    if(!byLesson[r.code]) byLesson[r.code]={title:r.lesson,code:r.code,sessions:0,totalPct:0,bestPct:0,users:new Set(),stores:new Set(),rows:[]};
     var l=byLesson[r.code]; l.sessions++; l.totalPct+=r.pct; l.bestPct=Math.max(l.bestPct,r.pct);
     l.users.add(r.user); l.stores.add(r.store);
+    l.rows.push({user:r.user,store:r.store,pct:r.pct,date:r.date,timeStr:r.timeStr});
   });
   el.innerHTML = Object.values(byLesson).sort(function(a,b){return b.sessions-a.sessions;}).map(function(l){
     var avg=Math.round(l.totalPct/l.sessions);
+    var rows=l.rows.slice().sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+    var tableRows=rows.map(function(r){
+      var color=r.pct>=70?'var(--ac)':'var(--dng)';
+      return '<tr>'
+        +'<td style="padding:6px 8px">'+esc(r.store)+'</td>'
+        +'<td style="padding:6px 8px" class="f600">'+esc(r.user)+'</td>'
+        +'<td style="padding:6px 8px;color:var(--mu);font-size:12px">'+esc(r.date)+'</td>'
+        +'<td style="padding:6px 8px;text-align:right;font-weight:700;color:'+color+'">'+r.pct+'%</td>'
+        +'</tr>';
+    }).join('');
     return '<div class="card" style="margin-bottom:.875rem">'
       +'<div class="ch"><i class="ti ti-book"></i><h2 style="flex:1">'+esc(l.title)+'</h2>'
       +'<span class="lcode-tag">'+esc(l.code)+'</span>'
       +'<span style="margin-left:.75rem;font-size:18px;font-weight:700;color:'+(avg>=70?'var(--ac)':'var(--dng)')+'">'+avg+'%</span></div>'
-      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem">'
+      +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.5rem;margin-bottom:1rem">'
       + statCard(l.sessions,'Sessioni','var(--tx)')
       + statCard(l.users.size,'Arredatori','var(--info)')
       + statCard(l.stores.size,'Store','var(--mu)')
       + statCard(l.bestPct+'%','Record','var(--suc)')
-      +'</div></div>';
+      +'</div>'
+      +'<div style="overflow-x:auto">'
+      +'<table style="width:100%;border-collapse:collapse;font-size:13px">'
+      +'<thead><tr style="border-bottom:2px solid var(--br);color:var(--mu);font-size:11px;text-transform:uppercase;letter-spacing:.5px">'
+      +'<th style="padding:4px 8px;text-align:left;font-weight:600">Store</th>'
+      +'<th style="padding:4px 8px;text-align:left;font-weight:600">Arredatore</th>'
+      +'<th style="padding:4px 8px;text-align:left;font-weight:600">Data</th>'
+      +'<th style="padding:4px 8px;text-align:right;font-weight:600">Risultato</th>'
+      +'</tr></thead>'
+      +'<tbody style="border-top:1px solid var(--br)">'+tableRows+'</tbody>'
+      +'</table></div>'
+      +'</div>';
   }).join('');
 }
 
