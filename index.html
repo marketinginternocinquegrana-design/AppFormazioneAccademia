@@ -231,40 +231,15 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
       </div>
       <div id="saved-lessons-list"><div class="mu sm-tx">Caricamento...</div></div>
     </div>
-    <div class="card">
-      <div class="ch"><i class="ti ti-book-2"></i><h2>Crea lezione</h2></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:.875rem">
-        <div class="field" style="margin:0"><label>Titolo lezione</label>
-          <input type="text" id="ltitle" placeholder="es. I 6 Tipi di Clienti">
-        </div>
-        <div class="field" style="margin:0"><label>Codice (auto-generato)</label>
-          <input type="text" id="lcode" readonly style="background:var(--sf);font-weight:700;color:var(--ac-d);font-size:16px;letter-spacing:1px">
-        </div>
-        <div class="field" style="margin:0"><label>Durata max (minuti)</label>
-          <input type="number" id="ldur" value="60" min="5" max="300">
-        </div>
-      </div>
-      <div class="field">
-        <label>Secondi per risposta</label>
-        <div class="flex gap2 ac">
-          <input type="range" id="qsec" min="5" max="60" value="20" step="1" style="flex:1" oninput="document.getElementById('qsecv').textContent=this.value">
-          <span id="qsecv" style="font-size:14px;font-weight:600;min-width:28px;color:var(--ac-d)">20</span>
-          <span class="mu sm-tx">sec</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Numero di moduli</label>
-        <div class="flex gap2 ac">
-          <input type="range" id="nsl" min="1" max="10" value="1" step="1" style="flex:1" oninput="updateModules(this.value)">
-          <span id="nslv" style="font-size:14px;font-weight:600;min-width:24px;color:var(--ac-d)">1</span>
-          <span class="mu sm-tx">moduli</span>
-        </div>
-      </div>
+    <!-- Crea lezione rimossa: si usa il Lesson Builder esterno -->
+    <div id="mod-builder" style="display:none"></div>
+    <div style="display:none">
+      <input type="text" id="ltitle"><input type="text" id="lcode"><input type="number" id="ldur" value="60">
+      <input type="range" id="qsec" value="20"><span id="qsecv">20</span>
+      <input type="range" id="nsl" value="1"><span id="nslv">1</span>
     </div>
-    <div id="mod-builder"></div>
     <div class="flex gap2 jb mt2">
       <button class="btn" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
-      <button class="btn pr" onclick="saveLesson()"><i class="ti ti-device-floppy"></i> Salva lezione</button>
     </div>
   </div>
 
