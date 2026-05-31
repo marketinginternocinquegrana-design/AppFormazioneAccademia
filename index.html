@@ -321,7 +321,8 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
         <i class="ti ti-radio"></i>
         <h2>Monitor in diretta</h2>
         <span class="live-badge" style="margin-left:8px" id="live-badge-panel">0</span>
-        <span class="mu sm-tx" style="margin-left:auto;font-size:12px">Aggiornamento ogni 10s</span>
+        <span class="mu sm-tx" style="margin-left:auto;font-size:12px">Aggiornamento ogni 5s</span>
+        <button class="btn sm" onclick="renderLive()" style="margin-left:8px"><i class="ti ti-refresh"></i> Aggiorna</button>
       </div>
       <div id="live-body"><div class="mu sm-tx">Nessun partecipante online.</div></div>
     </div>
@@ -729,6 +730,7 @@ async function goAdmin(){
   showLoad('Caricamento dati...');
   await loadStores();
   await loadLessons();
+  await loadActiveLesson();
   await loadResults();
   hideLoad();
   show('admin');
@@ -880,7 +882,7 @@ async function renderLive(){
   // Fetch participants active in last 30s
   var cutoff = new Date(Date.now() - 30000).toISOString();
   var {data, error} = await sb.from('live_participants').select('*').gte('last_seen', cutoff).order('last_seen', {ascending:false});
-  if(error){ body.innerHTML='<div class="mu sm-tx">Errore caricamento.</div>'; return; }
+  if(error){ body.innerHTML='<div class="mu sm-tx" style="color:var(--dng)">Errore: '+esc(error.message)+'</div>'; return; }
   var count = data ? data.length : 0;
   document.getElementById('live-badge-panel').textContent = count;
   document.getElementById('live-count-badge').textContent = count;
@@ -911,7 +913,7 @@ function startLivePolling(){
       // If live tab is open, refresh
       if(document.getElementById('ap-live').style.display==='block') renderLive();
     });
-  }, 10000);
+  }, 5000);
 }
 function stopLivePolling(){ clearInterval(liveInterval); liveInterval = null; }
 
@@ -942,7 +944,7 @@ function renderSavedLessons(){
       +'<div style="display:flex;gap:8px;align-items:center">'
       +'<div class="lcode-tag">'+esc(code)+'</div>'
       +'<button class="btn sm" onclick="'+activeBtnClick+'" style="'+activeBtnStyle+'">'+activeBtnLabel+'</button>'
-      +'<button class="btn sm" onclick="startAsStudent(\''+code+'\')" style="background:var(--info);color:#fff;border-color:var(--info)"><i class="ti ti-player-play"></i> Avvia</button>'
+
       +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
       +'</div></div>';
   }).join('');
