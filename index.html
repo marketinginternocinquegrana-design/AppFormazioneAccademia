@@ -1712,17 +1712,23 @@ function addDemoLesson(){
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 (async function(){
-  showLoad('Connessione a Supabase...');
-  await loadStores();
-  await loadLessons();
-  hideLoad();
-  populateSel();
-  renderLoginLessons();
-  renderModBuilder();
-  renderStoresList();
-  renderSavedLessons();
-  document.getElementById('lcode').value=genCode();
-  initLoginName();
+  try{
+    showLoad('Connessione a Supabase...');
+    await loadStores();
+    await loadLessons();
+    await loadActiveLesson();
+    hideLoad();
+    populateSel();
+    renderLoginLessons();
+    renderModBuilder();
+    renderStoresList();
+    renderSavedLessons();
+    document.getElementById('lcode').value=genCode();
+    initLoginName();
+  }catch(e){
+    hideLoad();
+    console.error('Errore init:',e);
+  }
 })();
 </script>
 </body>
