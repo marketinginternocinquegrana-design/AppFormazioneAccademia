@@ -392,7 +392,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f0;color:#1a
     </div>
     <div class="flex jb mt2">
       <div></div>
-      <button class="btn pr" onclick="startQuiz()">Vai alle domande <i class="ti ti-arrow-right"></i></button>
+      <button class="btn pr" id="btn-vai-domande" style="display:none" onclick="startQuiz()">Vai alle domande <i class="ti ti-arrow-right"></i></button>
     </div>
   </div>
 
@@ -843,7 +843,7 @@ async function sendHeartbeat(){
     lesson_code: S.lesson.code,
     mod_idx: S.curMod,
     q_idx: phase==='quiz' ? S.curQ : null,
-    phase: phase,
+    phase_text: phase,
     progress: S.lesson ? Math.round(S.allAnswers.length / totQs() * 100) : 0,
     last_seen: new Date().toISOString()
   };
@@ -862,7 +862,7 @@ async function renderLive(){
   document.getElementById('live-count-badge').textContent = count;
   if(!count){ body.innerHTML='<div class="mu sm-tx" style="padding:.5rem 0">Nessun partecipante online in questo momento.</div>'; return; }
   body.innerHTML = data.map(function(p){
-    var phase = p.phase==='slide' ? '📖 Slide — Modulo '+(p.mod_idx+1) : '❓ Domanda '+(p.q_idx+1)+' — Modulo '+(p.mod_idx+1);
+    var phase = p.phase_text==='slide' ? '📖 Slide — Modulo '+(p.mod_idx+1) : '❓ Domanda '+(p.q_idx+1)+' — Modulo '+(p.mod_idx+1);
     var ago = Math.round((Date.now() - new Date(p.last_seen).getTime()) / 1000);
     var pct = p.progress || 0;
     return '<div class="participant-row">'
@@ -1137,6 +1137,8 @@ function renderSlideViewer(){
     document.getElementById('sv-dots').innerHTML='';
     document.getElementById('sv-prev').disabled=true;
     document.getElementById('sv-next').style.display='none';
+    var btnD=document.getElementById('btn-vai-domande');
+    if(btnD) btnD.style.display='inline-flex';
     return;
   }
   document.getElementById('sv-img').src=imgs[idx];
@@ -1146,6 +1148,9 @@ function renderSlideViewer(){
   document.getElementById('sv-dots').innerHTML=dots;
   document.getElementById('sv-prev').disabled=idx===0;
   document.getElementById('sv-next').style.display=idx<imgs.length-1?'inline-flex':'none';
+  // Mostra "Vai alle domande" solo all'ultima slide
+  var btnDomande=document.getElementById('btn-vai-domande');
+  if(btnDomande) btnDomande.style.display=(idx>=imgs.length-1)?'inline-flex':'none';
 }
 function slideNav(dir){
   var imgs=S.lesson.modules[S.curMod].imgs||[];
