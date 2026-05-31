@@ -488,6 +488,7 @@ function hideLoad(){ document.getElementById('loading-overlay').style.display='n
 var lessons = {};   // code -> lesson object (with imgs as URLs)
 var results = [];   // local session results cache
 var stores = [];    // array of store names
+var activeLesson = '';  // codice lezione attiva del giorno (da Supabase settings)
 var _md = {};       // module builder: _md[i] = {imgs:[], imgFiles:[], questions:[]}
 
 var S = {
@@ -549,6 +550,33 @@ async function loadLessons(){
   });
   // Add demo lesson (local, no DB)
   addDemoLesson();
+}
+
+// ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
+async function loadActiveLesson(){
+  var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
+  if(error){console.error(error);return;}
+  activeLesson=data&&data.value?data.value:'';
+}
+
+async function setActiveLesson(code){
+  showLoad('Impostazione lezione del giorno...');
+  var {error}=await sb.from('settings').upsert({key:'active_lesson',value:code});
+  hideLoad();
+  if(error){alert('Errore: '+error.message);return;}
+  activeLesson=code;
+  renderSavedLessons();
+  alert('\u2705 Lezione del giorno impostata: '+code);
+}
+
+async function clearActiveLesson(){
+  showLoad('Rimozione lezione del giorno...');
+  var {error}=await sb.from('settings').upsert({key:'active_lesson',value:''});
+  hideLoad();
+  if(error){alert('Errore: '+error.message);return;}
+  activeLesson='';
+  renderSavedLessons();
+  alert('Lezione del giorno rimossa.');
 }
 
 async function saveLesson(){
@@ -620,6 +648,7 @@ async function saveLesson(){
   if(error){alert('Errore salvataggio: '+error.message);return;}
 
   await loadLessons();
+  await loadActiveLesson();
   renderSavedLessons();
   alert('✅ Lezione salvata!\n\nCodice: '+code+'\n\nTutti gli studenti vedranno subito la lezione.');
 
@@ -901,30 +930,42 @@ function renderSavedLessons(){
   el.innerHTML=codes.map(function(code){
     var l=lessons[code];
     var nq=l.modules.reduce(function(a,m){return a+m.questions.length;},0);
+    var isActive=activeLesson===code;
+    var activeBtnStyle=isActive
+      ?'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;font-weight:600'
+      :'';
+    var activeBtnLabel=isActive
+      ?'<i class="ti ti-calendar-check"></i> Attiva oggi'
+      :'<i class="ti ti-calendar"></i> Imposta oggi';
+    var activeBtnClick=isActive
+      ?'clearActiveLesson()'
+      :'setActiveLesson(''+code+'')';
     return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--br);font-size:13px">'
-      +'<div><div class="f600">'+esc(l.title)+'</div>'
+      +'<div><div class="f600">'+esc(l.title)+(isActive?' <span style="font-size:11px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px;margin-left:4px">oggi</span>':'')+'</div>'
       +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+l.dur+' min</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
       +'<div class="lcode-tag">'+esc(code)+'</div>'
-      +'<button class="btn sm" onclick="startAsStudent(\''+code+'\')" style="background:var(--info);color:#fff;border-color:var(--info)"><i class="ti ti-player-play"></i> Avvia</button>'
-      +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
+      +'<button class="btn sm" onclick="'+activeBtnClick+'" style="'+activeBtnStyle+'">'+activeBtnLabel+'</button>'
+      +'<button class="btn sm" onclick="startAsStudent(''+code+'')" style="background:var(--info);color:#fff;border-color:var(--info)"><i class="ti ti-player-play"></i> Avvia</button>'
+      +'<button class="btn sm dn" onclick="deleteLesson(''+code+'')"><i class="ti ti-trash"></i></button>'
       +'</div></div>';
   }).join('');
 }
 
 function renderLoginLessons(){
-  var codes=Object.keys(lessons).filter(function(c){return c!=='DEMO-001';});
   var box=document.getElementById('login-lessons-box');
   var list=document.getElementById('login-lessons-list');
-  if(!codes.length){box.style.display='none';return;}
+  if(!activeLesson||!lessons[activeLesson]){
+    box.style.display='none';
+    return;
+  }
+  var l=lessons[activeLesson];
   box.style.display='block';
-  list.innerHTML=codes.map(function(code){
-    var l=lessons[code];
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--br);font-size:13px">'
-      +'<div class="f600">'+esc(l.title)+'</div>'
-      +'<div class="lcode-tag" style="cursor:pointer" onclick="document.getElementById(\'lc\').value=\''+code+'\'">'
-      +esc(code)+'</div></div>';
-  }).join('');
+  list.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px">'
+    +'<div><div class="f600">'+esc(l.title)+'</div>'
+    +'<div class="mu" style="margin-top:2px;font-size:12px">Lezione di oggi</div></div>'
+    +'<div class="lcode-tag" style="cursor:pointer" onclick="document.getElementById('lc').value=''+activeLesson+''">'
+    +esc(activeLesson)+'</div></div>';
 }
 
 function startAsStudent(code){
