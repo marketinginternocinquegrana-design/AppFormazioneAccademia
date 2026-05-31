@@ -554,9 +554,11 @@ async function loadLessons(){
 
 // ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
 async function loadActiveLesson(){
-  var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
-  if(error){console.error(error);return;}
-  activeLesson=data&&data.value?data.value:'';
+  try{
+    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
+    if(error){console.warn('loadActiveLesson:',error.message);activeLesson='';return;}
+    activeLesson=data&&data.value?data.value:'';
+  }catch(e){console.warn('loadActiveLesson exception:',e);activeLesson='';}
 }
 
 async function setActiveLesson(code){
