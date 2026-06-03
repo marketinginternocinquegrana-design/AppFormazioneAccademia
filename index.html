@@ -94,6 +94,24 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 .store-tag button:hover{color:var(--dng)}
 .stores-wrap{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
 .gtimer{font-size:13px;color:var(--mu);display:flex;align-items:center;gap:6px}
+/* Editor lezioni */
+.edit-panel{background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:1rem;margin-top:.75rem;display:none}
+.edit-panel.open{display:block}
+.edit-field{margin-bottom:.75rem}
+.edit-field label{display:block;font-size:11px;font-weight:600;color:var(--mu);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.edit-field input{width:100%;border:1px solid var(--br);border-radius:7px;padding:7px 10px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit}
+.edit-field input:focus{outline:none;border-color:var(--ac)}
+.edit-section-title{font-size:11px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin:.75rem 0 .4rem}
+.edit-item-row{display:flex;align-items:center;gap:7px;margin-bottom:5px;background:var(--cb);padding:6px 10px;border-radius:7px;border:1px solid var(--br)}
+.edit-item-row input{flex:1;border:none;background:transparent;color:var(--tx);font-size:13px;font-family:inherit;outline:none}
+.edit-add-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:6px;border:1px dashed var(--br);border-radius:7px;background:none;color:var(--mu);font-size:13px;cursor:pointer;font-family:inherit;transition:all .15s}
+.edit-add-btn:hover{border-color:var(--ac);color:var(--ac)}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:.75rem}
+.edit-save-row{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--br)}
+.btn.xs{padding:4px 8px;font-size:12px}
+/* Modal nuova lezione */
+.modal-edit{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8500;display:flex;align-items:center;justify-content:center;padding:1rem}
+.modal-edit-box{background:var(--cb);border-radius:12px;padding:1.5rem;max-width:480px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.3)}
 .gtimer.urg{color:var(--dng);font-weight:600}
 .admin-notice{background:var(--ac-l);border:1px solid #9FE1CB;border-radius:9px;padding:10px 14px;font-size:13px;color:var(--ac-d);margin-bottom:1rem;display:flex;align-items:center;gap:8px}
 .lcode-tag{background:var(--ac-l);color:var(--ac-d);font-size:13px;font-weight:700;padding:5px 14px;border-radius:8px;letter-spacing:1px;display:inline-block}
@@ -899,6 +917,8 @@ function populateSel(){
 }
 
 // ─── SAVED LESSONS LIST ───────────────────────────────────────────────────────
+var _editOpenCode = null;
+
 function renderSavedLessons(){
   var el=document.getElementById('saved-lessons-list');
   var codes=Object.keys(lessons).filter(function(c){return c!=='DEMO-001';});
@@ -910,16 +930,118 @@ function renderSavedLessons(){
     var activeBtnStyle=isActive?'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;font-weight:600':'';
     var activeBtnLabel=isActive?'<i class="ti ti-calendar-check"></i> Attiva oggi':'<i class="ti ti-calendar"></i> Imposta oggi';
     var activeBtnClick=isActive?'clearActiveLesson()':'setActiveLesson(\''+code+'\')';
-    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--br);font-size:13px">'
+    var isEditOpen=_editOpenCode===code;
+
+    var editPanel='';
+    if(isEditOpen){
+      // Raccoglie tutte le domande da tutti i moduli
+      var allQuestions=[];
+      l.modules.forEach(function(m,mi){
+        m.questions.forEach(function(q,qi){
+          allQuestions.push({text:q.q,modIdx:mi,qIdx:qi});
+        });
+      });
+      editPanel='<div class="edit-panel open" id="ep-'+esc(code)+'">'
+        +'<div class="edit-grid">'
+        +'<div class="edit-field"><label>Titolo</label><input type="text" id="et-'+esc(code)+'" value="'+esc(l.title)+'"></div>'
+        +'<div class="edit-field"><label>Durata (min)</label><input type="number" id="ed-'+esc(code)+'" value="'+l.dur+'" min="5" step="5"></div>'
+        +'<div class="edit-field"><label>Codice</label><input type="text" id="ec-'+esc(code)+'" value="'+esc(code)+'"></div>'
+        +'</div>'
+        +'<div class="edit-section-title"><i class="ti ti-help-circle" style="font-size:11px"></i> Domande ('+allQuestions.length+')</div>'
+        +'<div id="eq-list-'+esc(code)+'">'
+        +allQuestions.map(function(item,idx){
+          return '<div class="edit-item-row">'
+            +'<span style="font-size:11px;color:var(--mu);min-width:16px">'+(idx+1)+'.</span>'
+            +'<input type="text" value="'+esc(item.text)+'" id="eq-'+esc(code)+'-'+idx+'" oninput="updateQuestion(\''+esc(code)+'\','+item.modIdx+','+item.qIdx+',this.value)">'
+            +'<button class="btn xs dn" onclick="removeQuestion(\''+esc(code)+'\','+item.modIdx+','+item.qIdx+')" title="Elimina"><i class="ti ti-x"></i></button>'
+            +'</div>';
+        }).join('')
+        +'</div>'
+        +'<button class="edit-add-btn" onclick="addQuestionToLesson(\''+esc(code)+'\')" style="margin-top:4px"><i class="ti ti-plus"></i> Aggiungi domanda</button>'
+        +'<div class="edit-save-row">'
+        +'<button class="btn sm" onclick="closeEditPanel()">Annulla</button>'
+        +'<button class="btn sm pr" onclick="saveEditedLesson(\''+esc(code)+'\')"><i class="ti ti-check"></i> Salva modifiche</button>'
+        +'</div></div>';
+    }
+
+    return '<div style="border-bottom:1px solid var(--br);padding:10px 0;font-size:13px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<div><div class="f600">'+esc(l.title)+(isActive?' <span style="font-size:11px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px;margin-left:4px">oggi</span>':'')+'</div>'
       +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+l.dur+' min</div></div>'
-      +'<div style="display:flex;gap:8px;align-items:center">'
+      +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       +'<div class="lcode-tag">'+esc(code)+'</div>'
       +'<button class="btn sm" onclick="'+activeBtnClick+'" style="'+activeBtnStyle+'">'+activeBtnLabel+'</button>'
-
+      +'<button class="btn sm" onclick="toggleEditPanel(\''+esc(code)+'\')" style="'+(isEditOpen?'background:var(--ac-l);border-color:var(--ac);color:var(--ac-d)':'')+'"><i class="ti ti-edit"></i> Modifica</button>'
       +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
-      +'</div></div>';
+      +'</div></div>'
+      +editPanel
+      +'</div>';
   }).join('');
+}
+
+function toggleEditPanel(code){
+  _editOpenCode=(_editOpenCode===code)?null:code;
+  renderSavedLessons();
+  if(_editOpenCode){
+    setTimeout(function(){
+      var ep=document.getElementById('ep-'+code);
+      if(ep) ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },80);
+  }
+}
+
+function closeEditPanel(){
+  _editOpenCode=null;
+  renderSavedLessons();
+}
+
+function updateQuestion(code,modIdx,qIdx,val){
+  if(lessons[code]&&lessons[code].modules[modIdx]&&lessons[code].modules[modIdx].questions[qIdx]){
+    lessons[code].modules[modIdx].questions[qIdx].q=val;
+  }
+}
+
+function removeQuestion(code,modIdx,qIdx){
+  if(!lessons[code]||!lessons[code].modules[modIdx]) return;
+  lessons[code].modules[modIdx].questions.splice(qIdx,1);
+  renderSavedLessons();
+}
+
+function addQuestionToLesson(code){
+  if(!lessons[code]) return;
+  var lastMod=lessons[code].modules[lessons[code].modules.length-1];
+  lastMod.questions.push({q:'Nuova domanda',type:'tf',opts:['Vero','Falso'],correct:'Vero'});
+  renderSavedLessons();
+}
+
+async function saveEditedLesson(code){
+  var l=lessons[code];
+  if(!l) return;
+  var newTitle=document.getElementById('et-'+code).value.trim()||l.title;
+  var newDur=parseInt(document.getElementById('ed-'+code).value)||l.dur;
+  var newCode=document.getElementById('ec-'+code).value.trim().toUpperCase()||code;
+
+  // Aggiorna i testi delle domande dal DOM
+  var allQ=[];
+  l.modules.forEach(function(m){allQ=allQ.concat(m.questions);});
+  allQ.forEach(function(q,idx){
+    var inp=document.getElementById('eq-'+code+'-'+idx);
+    if(inp) q.q=inp.value;
+  });
+
+  showLoad('Salvataggio modifiche...');
+  var payload={title:newTitle,dur:newDur,modules:l.modules};
+  if(newCode!==code) payload.code=newCode;
+
+  var {error}=await sb.from('lessons').update(payload).eq('id',l.id);
+  hideLoad();
+  if(error){alert('Errore: '+error.message);return;}
+
+  await loadLessons();
+  await loadActiveLesson();
+  _editOpenCode=null;
+  renderSavedLessons();
+  alert('✅ Lezione aggiornata!');
 }
 
 function renderLoginLessons(){
