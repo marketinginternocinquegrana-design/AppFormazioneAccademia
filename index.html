@@ -926,6 +926,7 @@ function renderSavedLessons(){
   el.innerHTML=codes.map(function(code){
     var l=lessons[code];
     var nq=l.modules.reduce(function(a,m){return a+m.questions.length;},0);
+    var ns=l.modules.reduce(function(a,m){return a+(m.imgs||[]).length;},0);
     var isActive=activeLesson===code;
     var activeBtnStyle=isActive?'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;font-weight:600':'';
     var activeBtnLabel=isActive?'<i class="ti ti-calendar-check"></i> Attiva oggi':'<i class="ti ti-calendar"></i> Imposta oggi';
@@ -934,40 +935,90 @@ function renderSavedLessons(){
 
     var editPanel='';
     if(isEditOpen){
-      // Raccoglie tutte le domande da tutti i moduli
+      var qsecVal=l.qsec||20;
+      // ── PANNELLO INFO BASE ──
+      var panelHtml='<div class="edit-panel open" id="ep-'+esc(code)+'">';
+
+      // Sezione: info generali
+      panelHtml+='<div style="font-size:12px;font-weight:700;color:var(--ac-d);margin-bottom:.6rem;padding-bottom:.4rem;border-bottom:1px solid var(--br)"><i class="ti ti-settings" style="font-size:12px"></i> INFO GENERALI</div>';
+      panelHtml+='<div class="edit-grid">'
+        +'<div class="edit-field"><label>Titolo lezione</label><input type="text" id="et-'+esc(code)+'" value="'+esc(l.title)+'"></div>'
+        +'<div class="edit-field"><label>Durata (min)</label><input type="number" id="ed-'+esc(code)+'" value="'+l.dur+'" min="5" step="5"></div>'
+        +'<div class="edit-field"><label>Codice ARR</label><input type="text" id="ec-'+esc(code)+'" value="'+esc(code)+'"></div>'
+        +'</div>';
+      panelHtml+='<div class="edit-field" style="max-width:280px">'
+        +'<label>⏱ Secondi per risposta: <strong id="qsec-lbl-'+esc(code)+'">'+qsecVal+'s</strong></label>'
+        +'<input type="range" min="5" max="60" step="5" value="'+qsecVal+'" style="width:100%;accent-color:var(--ac);margin-top:4px" '
+        +'oninput="document.getElementById(\'qsec-lbl-'+esc(code)+'\').textContent=this.value+\'s\'" id="eqsec-'+esc(code)+'">'
+        +'<div style="display:flex;justify-content:space-between;font-size:10px;color:var(--mu)"><span>5s</span><span>60s</span></div>'
+        +'</div>';
+
+      // ── SEZIONE MODULI / SLIDE ──
+      panelHtml+='<div style="font-size:12px;font-weight:700;color:var(--ac-d);margin:.9rem 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--br)"><i class="ti ti-photo" style="font-size:12px"></i> SLIDE PER MODULO</div>';
+
+      l.modules.forEach(function(mod,mi){
+        var imgs=mod.imgs||[];
+        panelHtml+='<div style="margin-bottom:1rem;background:var(--cb);border:1px solid var(--br);border-radius:8px;padding:.75rem">';
+        panelHtml+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">'
+          +'<span style="font-size:12px;font-weight:600;color:var(--ac-d)"><i class="ti ti-layout-cards" style="font-size:11px"></i> Modulo '+(mi+1)+' — '+imgs.length+' slide</span>'
+          +'<div style="display:flex;gap:6px">'
+          +'<label class="btn xs" style="cursor:pointer;background:var(--sf)" title="Aggiungi slide">'
+          +'<i class="ti ti-photo-plus"></i> Aggiungi slide'
+          +'<input type="file" accept="image/*" multiple style="display:none" onchange="editAddSlides(\''+esc(code)+'\','+mi+',this)">'
+          +'</label>'
+          +'<button class="btn xs dn" onclick="editRemoveMod(\''+esc(code)+'\','+mi+')" title="Rimuovi intero modulo"><i class="ti ti-trash"></i> Modulo</button>'
+          +'</div></div>';
+        if(imgs.length>0){
+          panelHtml+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px">';
+          imgs.forEach(function(url,si){
+            panelHtml+='<div style="position:relative;border-radius:6px;overflow:hidden;border:1px solid var(--br);background:#1a1a1a;aspect-ratio:16/9">'
+              +'<img src="'+url+'" style="width:100%;height:100%;object-fit:contain">'
+              +'<span style="position:absolute;bottom:3px;left:5px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px">'+(si+1)+'</span>'
+              +'<button onclick="editRemoveSlide(\''+esc(code)+'\','+mi+','+si+')" style="position:absolute;top:3px;right:3px;background:rgba(226,75,74,.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;padding:0" title="Rimuovi slide">&times;</button>'
+              +'</div>';
+          });
+          panelHtml+='</div>';
+        } else {
+          panelHtml+='<div class="mu sm-tx" style="font-size:11px">Nessuna slide. Aggiungine una.</div>';
+        }
+        panelHtml+='</div>';
+      });
+
+      panelHtml+='<button class="edit-add-btn" onclick="editAddModule(\''+esc(code)+'\')" style="margin-bottom:1rem"><i class="ti ti-plus"></i> Aggiungi modulo</button>';
+
+      // ── SEZIONE DOMANDE ──
       var allQuestions=[];
       l.modules.forEach(function(m,mi){
         m.questions.forEach(function(q,qi){
           allQuestions.push({text:q.q,modIdx:mi,qIdx:qi});
         });
       });
-      editPanel='<div class="edit-panel open" id="ep-'+esc(code)+'">'
-        +'<div class="edit-grid">'
-        +'<div class="edit-field"><label>Titolo</label><input type="text" id="et-'+esc(code)+'" value="'+esc(l.title)+'"></div>'
-        +'<div class="edit-field"><label>Durata (min)</label><input type="number" id="ed-'+esc(code)+'" value="'+l.dur+'" min="5" step="5"></div>'
-        +'<div class="edit-field"><label>Codice</label><input type="text" id="ec-'+esc(code)+'" value="'+esc(code)+'"></div>'
-        +'</div>'
-        +'<div class="edit-section-title"><i class="ti ti-help-circle" style="font-size:11px"></i> Domande ('+allQuestions.length+')</div>'
-        +'<div id="eq-list-'+esc(code)+'">'
+
+      panelHtml+='<div style="font-size:12px;font-weight:700;color:var(--ac-d);margin:.4rem 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid var(--br)"><i class="ti ti-help-circle" style="font-size:12px"></i> DOMANDE ('+allQuestions.length+')</div>';
+      panelHtml+='<div id="eq-list-'+esc(code)+'">'
         +allQuestions.map(function(item,idx){
           return '<div class="edit-item-row">'
-            +'<span style="font-size:11px;color:var(--mu);min-width:16px">'+(idx+1)+'.</span>'
+            +'<span style="font-size:11px;color:var(--mu);min-width:18px">'+(idx+1)+'.</span>'
             +'<input type="text" value="'+esc(item.text)+'" id="eq-'+esc(code)+'-'+idx+'" oninput="updateQuestion(\''+esc(code)+'\','+item.modIdx+','+item.qIdx+',this.value)">'
             +'<button class="btn xs dn" onclick="removeQuestion(\''+esc(code)+'\','+item.modIdx+','+item.qIdx+')" title="Elimina"><i class="ti ti-x"></i></button>'
             +'</div>';
         }).join('')
-        +'</div>'
-        +'<button class="edit-add-btn" onclick="addQuestionToLesson(\''+esc(code)+'\')" style="margin-top:4px"><i class="ti ti-plus"></i> Aggiungi domanda</button>'
-        +'<div class="edit-save-row">'
+        +'</div>';
+      panelHtml+='<button class="edit-add-btn" onclick="addQuestionToLesson(\''+esc(code)+'\')" style="margin-top:4px"><i class="ti ti-plus"></i> Aggiungi domanda</button>';
+
+      // ── PULSANTI SALVA ──
+      panelHtml+='<div class="edit-save-row">'
         +'<button class="btn sm" onclick="closeEditPanel()">Annulla</button>'
-        +'<button class="btn sm pr" onclick="saveEditedLesson(\''+esc(code)+'\')"><i class="ti ti-check"></i> Salva modifiche</button>'
+        +'<button class="btn sm pr" onclick="saveEditedLesson(\''+esc(code)+'\')"><i class="ti ti-check"></i> Salva tutto</button>'
         +'</div></div>';
+
+      editPanel=panelHtml;
     }
 
     return '<div style="border-bottom:1px solid var(--br);padding:10px 0;font-size:13px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center">'
       +'<div><div class="f600">'+esc(l.title)+(isActive?' <span style="font-size:11px;background:#e8f5e9;color:#2e7d32;border-radius:4px;padding:1px 6px;margin-left:4px">oggi</span>':'')+'</div>'
-      +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+l.dur+' min</div></div>'
+      +'<div class="mu" style="margin-top:2px">'+l.modules.length+' moduli · '+nq+' domande · '+ns+' slide · '+l.dur+' min · '+(l.qsec||20)+'s/dom</div></div>'
       +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       +'<div class="lcode-tag">'+esc(code)+'</div>'
       +'<button class="btn sm" onclick="'+activeBtnClick+'" style="'+activeBtnStyle+'">'+activeBtnLabel+'</button>'
@@ -1014,14 +1065,69 @@ function addQuestionToLesson(code){
   renderSavedLessons();
 }
 
+// ── GESTIONE SLIDE NELL'EDITOR ──
+function editRemoveSlide(code,modIdx,slideIdx){
+  if(!lessons[code]||!lessons[code].modules[modIdx]) return;
+  if(!confirm('Rimuovere questa slide?')) return;
+  lessons[code].modules[modIdx].imgs.splice(slideIdx,1);
+  renderSavedLessons();
+  setTimeout(function(){
+    var ep=document.getElementById('ep-'+code);
+    if(ep) ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },80);
+}
+
+function editRemoveMod(code,modIdx){
+  if(!lessons[code]) return;
+  if(lessons[code].modules.length<=1){alert('La lezione deve avere almeno un modulo.');return;}
+  if(!confirm('Rimuovere il modulo '+(modIdx+1)+' con tutte le sue slide e domande?')) return;
+  lessons[code].modules.splice(modIdx,1);
+  renderSavedLessons();
+  setTimeout(function(){
+    var ep=document.getElementById('ep-'+code);
+    if(ep) ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },80);
+}
+
+function editAddModule(code){
+  if(!lessons[code]) return;
+  lessons[code].modules.push({imgs:[],questions:[{q:'Nuova domanda',type:'tf',opts:['Vero','Falso'],correct:'Vero'}]});
+  renderSavedLessons();
+  setTimeout(function(){
+    var ep=document.getElementById('ep-'+code);
+    if(ep) ep.scrollIntoView({behavior:'smooth',block:'nearest'});
+  },80);
+}
+
+function editAddSlides(code,modIdx,inp){
+  if(!lessons[code]||!lessons[code].modules[modIdx]) return;
+  var files=Array.from(inp.files);
+  if(!files.length) return;
+  // Legge le immagini come data URL temporanee (upload al salvataggio)
+  var pending=files.length;
+  files.forEach(function(file){
+    var reader=new FileReader();
+    reader.onload=function(e){
+      // Salva come oggetto {url, file} temporaneo — lo gestiamo al save
+      if(!lessons[code].modules[modIdx]._newFiles) lessons[code].modules[modIdx]._newFiles=[];
+      lessons[code].modules[modIdx]._newFiles.push({dataUrl:e.target.result,file:file});
+      lessons[code].modules[modIdx].imgs.push(e.target.result); // preview
+      pending--;
+      if(pending===0) renderSavedLessons();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 async function saveEditedLesson(code){
   var l=lessons[code];
   if(!l) return;
   var newTitle=document.getElementById('et-'+code).value.trim()||l.title;
   var newDur=parseInt(document.getElementById('ed-'+code).value)||l.dur;
   var newCode=document.getElementById('ec-'+code).value.trim().toUpperCase()||code;
+  var newQsec=parseInt(document.getElementById('eqsec-'+code).value)||l.qsec||20;
 
-  // Aggiorna i testi delle domande dal DOM
+  // Aggiorna testi domande dal DOM
   var allQ=[];
   l.modules.forEach(function(m){allQ=allQ.concat(m.questions);});
   allQ.forEach(function(q,idx){
@@ -1029,8 +1135,30 @@ async function saveEditedLesson(code){
     if(inp) q.q=inp.value;
   });
 
-  showLoad('Salvataggio modifiche...');
-  var payload={title:newTitle,dur:newDur,modules:l.modules};
+  showLoad('Caricamento nuove slide...');
+
+  // Upload slide nuove per ogni modulo
+  for(var mi=0;mi<l.modules.length;mi++){
+    var mod=l.modules[mi];
+    if(mod._newFiles&&mod._newFiles.length){
+      for(var fi=0;fi<mod._newFiles.length;fi++){
+        var nf=mod._newFiles[fi];
+        var path=code+'/mod'+mi+'/edit_'+Date.now()+'_'+fi+'_'+nf.file.name.replace(/[^a-zA-Z0-9.]/g,'_');
+        var {data:upData,error:upErr}=await sb.storage.from('Formarreda').upload(path,nf.file,{upsert:true});
+        if(upErr){hideLoad();alert('Errore upload slide: '+upErr.message);return;}
+        var {data:urlData}=sb.storage.from('Formarreda').getPublicUrl(path);
+        // Sostituisce il dataUrl temporaneo con URL reale
+        var dataIdx=mod.imgs.indexOf(nf.dataUrl);
+        if(dataIdx>=0) mod.imgs[dataIdx]=urlData.publicUrl;
+      }
+      delete mod._newFiles;
+    }
+    // Rimuove eventuali dataUrl residui (upload falliti)
+    mod.imgs=mod.imgs.filter(function(u){return u.startsWith('http');});
+  }
+
+  showLoad('Salvataggio lezione...');
+  var payload={title:newTitle,dur:newDur,qsec:newQsec,modules:l.modules};
   if(newCode!==code) payload.code=newCode;
 
   var {error}=await sb.from('lessons').update(payload).eq('id',l.id);
