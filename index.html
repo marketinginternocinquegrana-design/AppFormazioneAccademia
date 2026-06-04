@@ -537,9 +537,14 @@ async function loadLessons(){
   if(error){console.error(error);return;}
   lessons={};
   data.forEach(function(r){
+    // Assicura che ogni modulo abbia slideTexts (compatibilità lezioni vecchie)
+    var mods=(r.modules||[]).map(function(mod){
+      if(!mod.slideTexts) mod.slideTexts=[];
+      return mod;
+    });
     lessons[r.code]={
-      id:r.id, title:r.title, code:r.code,
-      dur:r.dur, qsec:r.qsec, modules:r.modules
+      id:r.id, title:r.title, code:r.code, desc:r.desc||'',
+      dur:r.dur, qsec:r.qsec, modules:mods
     };
   });
   // Add demo lesson (local, no DB)
@@ -1396,8 +1401,15 @@ function renderSlideViewer(){
   document.getElementById('sv-counter').textContent=(idx+1)+' / '+imgs.length;
   // Mostra testo/note della slide
   var noteEl=document.getElementById('sv-note');
-  var texts=mod.slideTexts||[];
-  var noteText=texts[idx]||'';
+  // Prova slideTexts[], poi slides[idx].text, poi slide come oggetto {img,text}
+  var noteText='';
+  if(mod.slideTexts && mod.slideTexts[idx] !== undefined){
+    noteText = mod.slideTexts[idx]||'';
+  } else if(mod.slides && mod.slides[idx] && mod.slides[idx].text){
+    noteText = mod.slides[idx].text||'';
+  } else if(typeof imgs[idx]==='object' && imgs[idx] && imgs[idx].text){
+    noteText = imgs[idx].text||'';
+  }
   if(noteEl){
     noteEl.textContent=noteText;
     noteEl.className='slide-note'+(noteText.trim()?' visible':'');
