@@ -789,12 +789,16 @@ function promptChangePwd(){
 }
 
 // ─── NOME CONSULENTE ──────────────────────────────────────────────────────────
-var CONSULTANT_NAME_KEY = 'unlimitedaccademy_consultant_name';
-function getSavedName(){ return localStorage.getItem(CONSULTANT_NAME_KEY) || ''; }
+var CONSULTANT_NAME_KEY  = 'unlimitedaccademy_consultant_name';
+var CONSULTANT_STORE_KEY = 'unlimitedaccademy_consultant_store';
+function getSavedName(){  return localStorage.getItem(CONSULTANT_NAME_KEY)  || ''; }
+function getSavedStore(){ return localStorage.getItem(CONSULTANT_STORE_KEY) || ''; }
 function saveNameToStorage(n){ localStorage.setItem(CONSULTANT_NAME_KEY, n); }
+function saveStoreToStorage(s){ localStorage.setItem(CONSULTANT_STORE_KEY, s); }
 
 function initLoginName(){
   var saved = getSavedName();
+  var savedStore = getSavedStore();
   var lnEl = document.getElementById('ln');
   var btnChange = document.getElementById('btn-change-name');
   if(saved){
@@ -804,6 +808,27 @@ function initLoginName(){
     btnChange.style.display = 'inline-flex';
   } else {
     showNameModal(false);
+  }
+  // Ripristina lo store salvato
+  if(savedStore){
+    var storeSelect = document.getElementById('ls');
+    if(storeSelect){
+      // Attende che le opzioni siano caricate
+      function trySetStore(){
+        var found = false;
+        for(var i=0;i<storeSelect.options.length;i++){
+          if(storeSelect.options[i].value===savedStore){
+            storeSelect.value=savedStore;
+            found=true;
+            break;
+          }
+        }
+        if(!found && storeSelect.options.length<=1){
+          setTimeout(trySetStore,200);
+        }
+      }
+      trySetStore();
+    }
   }
 }
 
@@ -1027,12 +1052,29 @@ function renderSavedLessons(){
       +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
       +'<div class="lcode-tag">'+esc(code)+'</div>'
       +'<button class="btn sm" onclick="'+activeBtnClick+'" style="'+activeBtnStyle+'">'+activeBtnLabel+'</button>'
-      +'<button class="btn sm" onclick="toggleEditPanel(\''+esc(code)+'\')" style="'+(isEditOpen?'background:var(--ac-l);border-color:var(--ac);color:var(--ac-d)':'')+'"><i class="ti ti-edit"></i> Modifica</button>'
+      +'<button class="btn sm" onclick="openInLessonBuilder(\''+esc(code)+'\')" style="background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.08));border-color:rgba(201,168,76,.5);color:#c9a84c"><i class="ti ti-external-link"></i> Modifica nel Builder</button>'
       +'<button class="btn sm dn" onclick="deleteLesson(\''+code+'\')"><i class="ti ti-trash"></i></button>'
       +'</div></div>'
       +editPanel
       +'</div>';
   }).join('');
+}
+
+
+// ─── APRI NEL LESSON BUILDER ─────────────────────────────────────────────────
+var LESSON_BUILDER_URL = 'https://marketinginternocinquegrana-design.github.io/lesson-builder/';
+
+function openInLessonBuilder(code){
+  var l = lessons[code];
+  if(!l){ alert('Lezione non trovata.'); return; }
+  var exportData = {
+    code: l.code, title: l.title,
+    dur: l.dur, timer: l.qsec||20,
+    desc: l.desc||'', modules: l.modules
+  };
+  localStorage.setItem('ua_edit_lesson', JSON.stringify(exportData));
+  localStorage.setItem('ua_edit_lesson_id', l.id);
+  window.open(LESSON_BUILDER_URL + '?edit=' + encodeURIComponent(code), '_blank');
 }
 
 function toggleEditPanel(code){
@@ -1337,8 +1379,9 @@ function doLogin(){
     err.style.display='block';return;
   }
 
-  // Save name for next time
+  // Save name and store for next time
   saveNameToStorage(name);
+  saveStoreToStorage(store);
 
   err.style.display='none';
   S.user={name:name,store:store};
