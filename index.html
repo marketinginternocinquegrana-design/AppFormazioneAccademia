@@ -337,6 +337,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
         <select id="storico-store-filter" onchange="renderStorico()" style="border:1px solid var(--br);border-radius:8px;padding:5px 10px;font-size:12px;background:var(--cb);color:var(--tx);font-family:inherit">
           <option value="">Tutti gli store</option>
         </select>
+        <input type="date" id="storico-date-from" onchange="renderStorico()" title="Data da" style="border:1px solid var(--br);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--cb);color:var(--tx);font-family:inherit">
+        <input type="date" id="storico-date-to" onchange="renderStorico()" title="Data a" style="border:1px solid var(--br);border-radius:8px;padding:5px 8px;font-size:12px;background:var(--cb);color:var(--tx);font-family:inherit">
+        <button class="btn sm" onclick="document.getElementById('storico-date-from').value='';document.getElementById('storico-date-to').value='';renderStorico()" title="Azzera filtro data"><i class="ti ti-x"></i></button>
       </div>
     </div>
 
@@ -682,6 +685,7 @@ async function loadResults(){
     lesson:r.lesson_title, code:r.lesson_code,
     ok:r.ok, tot:r.tot, pct:r.pct,
     to:r.timeout_count, date:r.created_at?new Date(r.created_at).toLocaleString('it-IT'):'',
+    created_at:r.created_at,
     timeStr:r.time_str, answers:r.answers
   };});
 }
@@ -1738,8 +1742,18 @@ function renderStoricoFilters(){
 function getFilteredResults(){
   var lf = document.getElementById('storico-lesson-filter').value;
   var sf = document.getElementById('storico-store-filter').value;
+  var df = document.getElementById('storico-date-from').value; // YYYY-MM-DD
+  var dt = document.getElementById('storico-date-to').value;
   return results.filter(function(r){
-    return (!lf || r.code===lf) && (!sf || r.store===sf);
+    if(lf && r.code!==lf) return false;
+    if(sf && r.store!==sf) return false;
+    if((df||dt) && r.created_at){
+      var rd = new Date(r.created_at);
+      var rdLocal = rd.getFullYear()+'-'+String(rd.getMonth()+1).padStart(2,'0')+'-'+String(rd.getDate()).padStart(2,'0');
+      if(df && rdLocal < df) return false;
+      if(dt && rdLocal > dt) return false;
+    }
+    return true;
   });
 }
 
