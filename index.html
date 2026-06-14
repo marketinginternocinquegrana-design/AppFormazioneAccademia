@@ -1683,7 +1683,6 @@ function importLessonJSON(input){
       title: lesson.title,
       dur: lesson.dur || 60,
       qsec: lesson.timer || 20,
-      desc: lesson.desc || '',
       modules: modules
     },{onConflict:'code'});
     hideLoad();
