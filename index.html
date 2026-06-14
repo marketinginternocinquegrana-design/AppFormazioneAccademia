@@ -64,6 +64,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 .slide-viewer img{width:100%;max-height:520px;object-fit:contain;display:block}
 .slide-note{background:rgba(201,168,76,.07);border-left:3px solid rgba(201,168,76,.5);border-radius:0 8px 8px 0;padding:.75rem 1rem;margin-top:.75rem;font-size:14px;color:var(--tx);line-height:1.6;display:none}
 .slide-note.visible{display:block}
+.slide-note.text-slide{background:var(--cb);border-left:none;border-radius:0;padding:1.25rem 1.5rem;margin-top:0;font-size:14px;line-height:1.75;white-space:pre-wrap;min-height:200px}
 .slide-nav{display:flex;align-items:center;justify-content:space-between;padding:.75rem 1rem;background:var(--cb);border:1px solid var(--br);border-radius:10px;margin-bottom:1rem}
 .slide-dots{display:flex;gap:7px;align-items:center}
 .slide-dot{width:8px;height:8px;border-radius:50%;background:#ddd;cursor:pointer;transition:background .2s,transform .2s;border:none;padding:0}
@@ -1431,8 +1432,28 @@ function showSlides(){
 }
 function renderSlideViewer(){
   var mod=S.lesson.modules[S.curMod],imgs=mod.imgs,idx=S.curSlide;
+  var svImg=document.getElementById('sv-img');
+  var noteEl=document.getElementById('sv-note');
+  var texts=mod.slideTexts||[];
+  // Modalità slide testuale: nessuna immagine ma slideTexts disponibili
+  if((!imgs||!imgs.length) && texts.length){
+    svImg.style.display='none';
+    if(noteEl){
+      noteEl.textContent=texts[idx]||'';
+      noteEl.className='slide-note visible text-slide';
+    }
+    document.getElementById('sv-counter').textContent=(idx+1)+' / '+texts.length;
+    var dots='';
+    texts.forEach(function(_,i){dots+='<button class="slide-dot'+(i===idx?' active':'')+'" onclick="goSlide('+i+')"></button>';});
+    document.getElementById('sv-dots').innerHTML=dots;
+    document.getElementById('sv-prev').disabled=idx===0;
+    document.getElementById('sv-next').style.display=idx<texts.length-1?'inline-flex':'none';
+    var btnDomande=document.getElementById('btn-vai-domande');
+    if(btnDomande) btnDomande.style.display=(idx>=texts.length-1)?'inline-flex':'none';
+    return;
+  }
   if(!imgs||!imgs.length){
-    document.getElementById('sv-img').src='';
+    svImg.src='';svImg.style.display='';
     document.getElementById('sv-counter').textContent='Nessuna slide caricata';
     document.getElementById('sv-dots').innerHTML='';
     document.getElementById('sv-prev').disabled=true;
@@ -1441,11 +1462,10 @@ function renderSlideViewer(){
     if(btnD) btnD.style.display='inline-flex';
     return;
   }
-  document.getElementById('sv-img').src=imgs[idx];
+  svImg.style.display='';
+  svImg.src=imgs[idx];
   document.getElementById('sv-counter').textContent=(idx+1)+' / '+imgs.length;
   // Mostra testo/note della slide
-  var noteEl=document.getElementById('sv-note');
-  // Prova slideTexts[], poi slides[idx].text, poi slide come oggetto {img,text}
   var noteText='';
   if(mod.slideTexts && mod.slideTexts[idx] !== undefined){
     noteText = mod.slideTexts[idx]||'';
@@ -1468,8 +1488,10 @@ function renderSlideViewer(){
   if(btnDomande) btnDomande.style.display=(idx>=imgs.length-1)?'inline-flex':'none';
 }
 function slideNav(dir){
-  var imgs=S.lesson.modules[S.curMod].imgs||[];
-  S.curSlide=Math.max(0,Math.min(imgs.length-1,S.curSlide+dir));
+  var mod=S.lesson.modules[S.curMod];
+  var imgs=mod.imgs||[];
+  var len=imgs.length||(mod.slideTexts||[]).length;
+  S.curSlide=Math.max(0,Math.min(len-1,S.curSlide+dir));
   renderSlideViewer();
 }
 function goSlide(i){S.curSlide=i;renderSlideViewer();}
