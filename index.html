@@ -2063,7 +2063,6 @@ function renderPercorso(){
   // Nota sui filtri
   html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center">'
     +'<i class="ti ti-info-circle"></i> Il Percorso mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
-
   el.innerHTML = html;
 }
 
@@ -2103,7 +2102,7 @@ function renderRank(){
     }).join('')+'</tbody></table>';
 }
 
-// ─── PDF ──────────────────────────────────────────────────────────────────────
+// ─── PDF ─────────────────────────────────────────────────────────────────────────────────
 function buildPDF(r){
   var jsPDF=window.jspdf.jsPDF;
   var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -2123,96 +2122,32 @@ function buildPDF(r){
   row('Arredatore:',r.user);row('Store:',r.store);row('Tempo:',r.timeStr);
   row('Punteggio:',r.pct+'%',r.pct>=70?[29,158,117]:[226,75,74]);
   row('Corrette:',r.ok+' su '+r.tot);row('Timeout:',r.to);
-  y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=10;
-  doc.setFont('helvetica','bold');doc.setFontSize(12);doc.setTextColor(8,80,65);
-  doc.text('Dettaglio risposte',14,y);y+=9;
-  r.answers.forEach(function(a){
-    if(y>ph-25){doc.addPage();y=20;}
-    var ic=a.timedOut?'[TIMEOUT]':(a.correct?'[CORRETTO]':'[ERRATO]');
-    var col=a.timedOut?[186,117,23]:(a.correct?[29,158,117]:[226,75,74]);
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor.apply(doc,col);doc.text(ic,14,y);
-    doc.setFont('helvetica','normal');doc.setTextColor(30,30,30);
-    var qlines=doc.splitTextToSize('Mod.'+(a.modIdx+1)+' — '+a.qText,125);doc.text(qlines,44,y);y+=qlines.length*4.5;
-    doc.setTextColor(100,100,100);
-    doc.text('Risposta: '+(a.timedOut?'Timeout':(a.chosen||'—'))+((!a.correct&&!a.timedOut)?'  Corretta: '+a.correctAns:''),44,y);
-    doc.setDrawColor(235,235,235);doc.line(14,y+4,pw-14,y+4);y+=10;
-  });
-  doc.setFillColor(29,158,117);doc.rect(0,ph-10,pw,10,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','normal');
-  doc.text('Unlimited Accademy · '+new Date().toLocaleString('it-IT'),14,ph-4);
-  return doc;
-}
-function exportMyPDF(){
-  var r=S.lastResult;
-  if(!r&&results.length) r=results[0];
-  if(!r) return;
-  buildPDF(r).save('UnlimitedAccademy_'+r.user.replace(/\s/g,'_')+'.pdf');
-}
-function exportOnePDF(i){buildPDF(results[i]).save('UnlimitedAccademy_'+results[i].user.replace(/\s/g,'_')+'.pdf');}
-function exportAllPDF(){
-  if(!results.length){alert('Nessun risultato.');return;}
-  var jsPDF=window.jspdf.jsPDF;
-  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
-  doc.setFillColor(29,158,117);doc.rect(0,0,pw,26,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
-  doc.text('Unlimited Accademy — Riepilogo',14,13);
-  doc.setFontSize(9);doc.setFont('helvetica','normal');
-  doc.text('Esportato il '+new Date().toLocaleString('it-IT')+' · '+results.length+' sessioni',14,21);
-  var y=36;
-  results.forEach(function(r,idx){
-    if(y>ph-28){doc.addPage();y=20;}
-    doc.setFontSize(11);doc.setFont('helvetica','bold');doc.setTextColor(29,158,117);
-    doc.text((idx+1)+'. '+r.user+' — '+r.store,14,y);y+=6;
-    doc.setFont('helvetica','normal');doc.setTextColor(80,80,80);doc.setFontSize(9);
-    doc.text(r.lesson+' ('+r.code+') · '+r.date+' · '+r.timeStr,14,y);y+=5;
-    doc.setFont('helvetica','bold');doc.setTextColor.apply(doc,r.pct>=70?[29,158,117]:[226,75,74]);
-    doc.text('Punteggio: '+r.pct+'%  Corrette: '+r.ok+'/'+r.tot+'  Timeout: '+r.to,14,y);
-    doc.setDrawColor(220,220,220);doc.line(14,y+4,pw-14,y+4);y+=12;
-  });
-  doc.setFillColor(29,158,117);doc.rect(0,ph-10,pw,10,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','normal');
-  doc.text('Unlimited Accademy · '+new Date().toLocaleString('it-IT'),14,ph-4);
-  doc.save('UnlimitedAccademy_Risultati_'+new Date().toISOString().slice(0,10)+'.pdf');
-}
-
-// ─── DEMO ─────────────────────────────────────────────────────────────────────
-function addDemoLesson(){
-  function svg(label,color){
-    var s='<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="'+color+'"/><text x="400" y="210" text-anchor="middle" font-family="system-ui" font-size="38" font-weight="bold" fill="white">'+label+'</text><text x="400" y="260" text-anchor="middle" font-family="system-ui" font-size="16" fill="rgba(255,255,255,0.7)">Unlimited Accademy</text></svg>';
-    return 'data:image/svg+xml;base64,'+btoa(unescape(encodeURIComponent(s)));
+  if(r.answers&&r.answers.length){
+    y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=8;
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);
+    doc.text('Dettaglio risposte',14,y);y+=8;
+    r.answers.forEach(function(a){
+      if(y>ph-20){doc.addPage();y=20;}
+      var ok=a.correct,to=a.timedOut;
+      doc.setFontSize(9);doc.setFont('helvetica','bold');
+      doc.setTextColor.apply(doc,to?[226,175,74]:ok?[29,158,117]:[226,75,74]);
+      doc.text(to?'[T]':ok?'[OK]':'[X]',14,y);
+      doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');
+      var lines=doc.splitTextToSize(a.qText||'',pw-36);
+      doc.text(lines,26,y);y+=lines.length*5+2;
+      if(!ok&&!to&&a.correctAns){
+        doc.setTextColor(100,100,100);
+        var al=doc.splitTextToSize('Corretta: '+a.correctAns,pw-36);
+        doc.text(al,26,y);y+=al.length*5+2;
+      }
+    });
   }
-  lessons['DEMO-001']={title:'I 6 Tipi di Clienti',code:'DEMO-001',dur:30,qsec:20,
-    modules:[
-      {imgs:[svg('I 6 Tipi di Clienti','#1D9E75'),svg('Analitico 25% · Sensibile 25%','#185FA5'),svg('Guida 15% · Estroverso 25%','#085041')],
-       questions:[
-        {q:"L'Acquirente Analitico costituisce il 25% del mercato?",type:'tf',opts:['Vero','Falso'],correct:'Vero'},
-        {q:"Quale acquirente ha più bisogno di rassicurazioni?",type:'mc',opts:['Realizzato','Guida','Sensibile','Estroverso'],correct:'Sensibile'},
-        {q:"L'Acquirente Indifferente e il Realizzato insieme fanno il 10%?",type:'tf',opts:['Vero','Falso'],correct:'Vero'}
-      ]},
-      {imgs:[svg('Strategie di Vendita','#BA7517'),svg('Chiudere con Efficacia','#E24B4A')],
-       questions:[
-        {q:"Il cliente vuole dati tecnici prima di comprare. Che tipo è?",type:'mc',opts:['Realizzato','Analitico','Guida','Indifferente'],correct:'Analitico'},
-        {q:"Con l'Estroverso devo ascoltarlo e renderlo protagonista della trattativa?",type:'tf',opts:['Vero','Falso'],correct:'Vero'}
-      ]}
-    ]};
+  doc.save('UA-'+r.code+'-'+r.user+'.pdf');
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-(async function(){
-  try{
-    showLoad('Connessione a Supabase...');
-    await loadStores();
-    await loadLessons();
-    await loadActiveLesson();
-    hideLoad();
-    populateSel();
-    renderLoginLessons();
-    renderModBuilder();
-    renderStoresList();
-    renderSavedLessons();
-    document.getElementById('lcode').value=genCode();
-    initLoginName();
-  }catch(e){
-    hideLoad();
-    console.error('Errore 
+function exportOnePDF(i){buildPDF(results[i]);}
+function exportAllPDF(){results.forEach(function(r){buildPDF(r);});}
+function exportMyPDF(){if(S.lastResult)buildPDF(S.lastResult);}
+</script>
+</body>
+</html>
