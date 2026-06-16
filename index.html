@@ -2145,6 +2145,23 @@ function buildPDF(r){
   doc.save('UA-'+r.code+'-'+r.user+'.pdf');
 }
 
+
+function addDemoLesson(){
+  lessons['DEMO-001']={
+    id:'demo',title:'Lezione Demo',code:'DEMO-001',desc:'Lezione dimostrativa per testare la piattaforma.',
+    dur:5,qsec:20,
+    modules:[{
+      title:'Modulo Demo',
+      slides:['Benvenuto nella lezione demo!','Questa è una slide di esempio.'],
+      slideTexts:['Testo della prima slide.','Testo della seconda slide.'],
+      images:[],
+      questions:[
+        {q:'Questa è una domanda demo?',type:'tf',correct:0,opts:[]},
+        {q:'Seleziona la risposta corretta:',type:'mc',opts:['Opzione A','Opzione B','Opzione C','Opzione D'],correct:0}
+      ]
+    }]
+  };
+}
 function exportOnePDF(i){buildPDF(results[i]);}
 function exportAllPDF(){results.forEach(function(r){buildPDF(r);});}
 function exportMyPDF(){if(S.lastResult)buildPDF(S.lastResult);}
