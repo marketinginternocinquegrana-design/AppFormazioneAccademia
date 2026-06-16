@@ -2015,7 +2015,7 @@ function renderPercorso(){
   allLessons.forEach(function(l){
     html += '<th style="padding:4px 2px;text-align:center;min-width:52px;max-width:52px;vertical-align:bottom" title="'+esc(l.title)+' ('+esc(l.code)+')">'
       +'<div style="writing-mode:vertical-lr;transform:rotate(180deg);height:70px;font-size:9px;font-weight:600;'
-      +'color:var(--mu);overflow:hidden;text-overflow:ellipsis;padding:0 2px;white-space:nowrap">'+esc(l.code)+'</div>'
+      +'color:var(--mu);overflow:hidden;text-overflow:ellipsis;padding:0 2px;white-space:nowrap">'+esc(l.title.length>12?l.title.substring(0,12)+'…':l.title)+'</div>'
       +'</th>';
   });
   html += '</tr></thead>';
@@ -2215,9 +2215,4 @@ function addDemoLesson(){
     initLoginName();
   }catch(e){
     hideLoad();
-    console.error('Errore init:',e);
-  }
-})();
-</script>
-</body>
-</html>
+    console.error('Errore 
