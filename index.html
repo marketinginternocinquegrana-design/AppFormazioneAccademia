@@ -1981,17 +1981,17 @@ function renderPercorso(){
   storeStats.forEach(function(s){
     var color = s.pct>=80?'var(--ac)':s.pct>=50?'var(--info)':'var(--dng)';
     html += '<div class="card" style="padding:.75rem;cursor:pointer;transition:opacity .15s" onclick="scrollToStoreRow(\''+esc(s.name)+'\')">'
-      +'<div style="font-size:11px;font-weight:700;color:var(--tx);margin-bottom:.375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(s.name)+'">'+esc(s.name)+'</div>'
+      +'<div style="font-size:13px;font-weight:700;color:var(--tx);margin-bottom:.375rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+esc(s.name)+'">'+esc(s.name)+'</div>'
       +'<div style="display:flex;align-items:baseline;gap:3px;margin-bottom:.25rem">'
       +'<span style="font-size:20px;font-weight:700;color:'+color+'">'+s.pct+'%</span>'
-      +'<span style="font-size:10px;color:var(--mu)">'+s.done+'/'+totalL+'</span>'
+      +'<span style="font-size:12px;color:var(--mu)">'+s.done+'/'+totalL+'</span>'
       +'</div>'
       +'<div style="background:var(--sf);border-radius:4px;height:4px;overflow:hidden;margin-bottom:.375rem">'
       +'<div style="width:'+s.pct+'%;height:100%;background:'+color+';border-radius:4px;transition:width .4s"></div>'
       +'</div>'
       +(s.missing>0
-        ?'<div style="font-size:10px;color:var(--dng)">'+s.missing+' mancante'+(s.missing>1?'i':'')+'</div>'
-        :'<div style="font-size:10px;color:var(--ac)">✓ Percorso completo</div>')
+        ?'<div style="font-size:12px;color:var(--dng)">'+s.missing+' mancante'+(s.missing>1?'i':'')+'</div>'
+        :'<div style="font-size:12px;color:var(--ac)">✓ Percorso completo</div>')
       +'</div>';
   });
   html += '</div>';
@@ -2001,16 +2001,16 @@ function renderPercorso(){
   html += '<div style="padding:.75rem 1rem;border-bottom:1px solid var(--br);display:flex;align-items:center;gap:.5rem">';
   html += '<i class="ti ti-map-2" style="color:var(--ac)"></i>';
   html += '<h2 style="margin:0">Matrice percorso formativo</h2>';
-  html += '<span style="margin-left:auto;font-size:11px;color:var(--mu)">'+totalL+' lezioni nel programma</span>';
+  html += '<span style="margin-left:auto;font-size:13px;color:var(--mu)">'+totalL+' lezioni nel programma</span>';
   html += '</div>';
   html += '<div style="overflow-x:auto;-webkit-overflow-scrolling:touch">';
-  html += '<table style="border-collapse:collapse;font-size:12px;min-width:100%">';
+  html += '<table style="border-collapse:collapse;font-size:14px;min-width:100%">';
 
   // Header lezioni (vertical text)
   html += '<thead><tr style="background:var(--sf)">';
   html += '<th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--tx);white-space:nowrap;'
     +'position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:140px">Store</th>';
-  html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:10px;white-space:nowrap;border-right:1px solid var(--br)">'
+  html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:12px;white-space:nowrap;border-right:1px solid var(--br)">'
     +'<div>Completate</div><div style="font-size:9px;font-weight:400">/ '+totalL+'</div></th>';
   allLessons.forEach(function(l){
     html += '<th style="padding:4px 2px;text-align:center;min-width:52px;max-width:52px;vertical-align:bottom" title="'+esc(l.title)+' ('+esc(l.code)+')">'
@@ -2037,10 +2037,10 @@ function renderPercorso(){
         cell = '<span title="Non ancora svolta" style="font-size:16px;color:var(--br)">○</span>';
         bgCell = bg;
       } else if(pct >= 70){
-        cell = '<span title="'+pct+'% — superata" style="font-size:11px;font-weight:700;color:var(--ac)">'+pct+'%</span>';
+        cell = '<span title="'+pct+'% — superata" style="font-size:13px;font-weight:700;color:var(--ac)">'+pct+'%</span>';
         bgCell = 'rgba(29,158,117,.08)';
       } else {
-        cell = '<span title="'+pct+'% — sotto soglia" style="font-size:11px;font-weight:700;color:var(--dng)">'+pct+'%</span>';
+        cell = '<span title="'+pct+'% — sotto soglia" style="font-size:13px;font-weight:700;color:var(--dng)">'+pct+'%</span>';
         bgCell = 'rgba(226,75,74,.06)';
       }
       html += '<td style="padding:6px 2px;text-align:center;background:'+bgCell+'">'+cell+'</td>';
@@ -2051,11 +2051,11 @@ function renderPercorso(){
 
   // Legenda
   html += '<div style="padding:.625rem 1rem;border-top:1px solid var(--br);display:flex;gap:1.25rem;flex-wrap:wrap">';
-  html += '<span style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:11px">85%</span> Superata (≥70%)</span>';
-  html += '<span style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:11px">45%</span> Svolta ma sotto soglia</span>';
-  html += '<span style="font-size:11px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (≥70%)</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
     +'<span style="color:var(--br);font-size:16px">○</span> Non ancora svolta</span>';
   html += '</div>';
   html += '</div>';
