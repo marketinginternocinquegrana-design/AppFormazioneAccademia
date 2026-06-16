@@ -378,6 +378,10 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 
     <!-- Percorso -->
     <div id="spanel-percorso" style="display:none">
+      <div style="display:flex;gap:.5rem;margin-bottom:.75rem">
+        <button class="btn sm" id="ptab-store" onclick="setPercorsoMode('store')" style="border-color:var(--ac);color:var(--ac);background:rgba(201,168,76,.08)"><i class="ti ti-building-store"></i> Per Store</button>
+        <button class="btn sm" id="ptab-venditore" onclick="setPercorsoMode('venditore')"><i class="ti ti-user"></i> Per Venditore</button>
+      </div>
       <div id="percorso-body"></div>
     </div>
 
@@ -1728,6 +1732,7 @@ function importLessonJSON(input){
 
 // ─── STORICO ──────────────────────────────────────────────────────────────────
 var _curSTab = 'sessioni';
+var _percorsoMode = 'store';
 
 function sTab(t){
   _curSTab = t;
@@ -1932,7 +1937,19 @@ function renderStoricoLezioni(data){
   }).join('');
 }
 
+function setPercorsoMode(mode){
+  _percorsoMode = mode;
+  var btns = {store:'ptab-store', venditore:'ptab-venditore'};
+  Object.keys(btns).forEach(function(k){
+    var btn = document.getElementById(btns[k]);
+    if(k===mode){ btn.style.borderColor='var(--ac)'; btn.style.color='var(--ac)'; btn.style.background='rgba(201,168,76,.08)'; }
+    else { btn.style.borderColor=''; btn.style.color=''; btn.style.background=''; }
+  });
+  renderPercorso();
+}
+
 function renderPercorso(){
+  if(_percorsoMode==='venditore'){ renderPercorsoVenditori(); return; }
   var el = document.getElementById('percorso-body');
   var allLessons = Object.values(lessons).filter(function(l){ return l.code !== 'DEMO-001'; });
   allLessons.sort(function(a,b){ return a.code.localeCompare(b.code); });
@@ -2063,6 +2080,145 @@ function renderPercorso(){
   // Nota sui filtri
   html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center">'
     +'<i class="ti ti-info-circle"></i> Il Percorso mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
+  el.innerHTML = html;
+}
+
+
+function renderPercorsoVenditori(){
+  var el = document.getElementById('percorso-body');
+  var allLessons = Object.values(lessons).filter(function(l){ return l.code !== 'DEMO-001'; });
+  allLessons.sort(function(a,b){ return a.code.localeCompare(b.code); });
+
+  if(!allLessons.length){
+    el.innerHTML='<div class="card"><div class="mu sm-tx">Nessuna lezione nel programma.</div></div>';
+    return;
+  }
+  if(!results.length){
+    el.innerHTML='<div class="card"><div class="mu sm-tx">Nessun risultato ancora.</div></div>';
+    return;
+  }
+
+  // Filtra store se filtro attivo
+  var sf = document.getElementById('storico-store-filter').value;
+
+  // Costruisci elenco venditori unici (nome|store)
+  var vendSet = {};
+  results.forEach(function(r){
+    if(sf && r.store!==sf) return;
+    var k = r.user+'|||'+r.store;
+    if(!vendSet[k]) vendSet[k]={name:r.user, store:r.store};
+  });
+  var vendList = Object.values(vendSet).sort(function(a,b){
+    return a.store.localeCompare(b.store)||a.name.localeCompare(b.name);
+  });
+
+  if(!vendList.length){
+    el.innerHTML='<div class="card"><div class="mu sm-tx">Nessun venditore trovato.</div></div>';
+    return;
+  }
+
+  var totalL = allLessons.length;
+
+  // Matrice: miglior risultato per venditore x lezione (su TUTTI i risultati, senza filtro data)
+  var matrix = {};
+  vendList.forEach(function(v){
+    var k = v.name+'|||'+v.store;
+    matrix[k] = {};
+    allLessons.forEach(function(l){ matrix[k][l.code] = null; });
+  });
+  results.forEach(function(r){
+    if(sf && r.store!==sf) return;
+    var k = r.user+'|||'+r.store;
+    if(!matrix[k]) return;
+    if(r.code==='DEMO-001') return;
+    if(matrix[k][r.code]===null || r.pct > matrix[k][r.code]) matrix[k][r.code]=r.pct;
+  });
+
+  // Stats per venditore
+  var vendStats = vendList.map(function(v){
+    var k = v.name+'|||'+v.store;
+    var done=0, total=0;
+    allLessons.forEach(function(l){
+      if(matrix[k][l.code]!==null){ total+=matrix[k][l.code]; done++; }
+    });
+    return {name:v.name, store:v.store, key:k, done:done, pct:done?Math.round(total/done):0, missing:totalL-done};
+  });
+
+  var html = '<div class="card" style="overflow:hidden;padding:0">';
+
+  // Header
+  html += '<div style="padding:.875rem 1rem .5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">';
+  html += '<div style="display:flex;align-items:center;gap:.5rem"><i class="ti ti-user" style="color:var(--ac);font-size:18px"></i>'
+    +'<span style="font-weight:700;font-size:16px">Percorso per Venditore</span></div>';
+  html += '<span style="font-size:13px;color:var(--mu)">'+vendList.length+' venditori</span>';
+  html += '</div>';
+
+  // Tabella
+  html += '<div style="overflow-x:auto">';
+  html += '<table style="border-collapse:collapse;font-size:14px;min-width:100%">';
+
+  // Header row
+  html += '<thead><tr style="background:var(--sf)">';
+  html += '<th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--tx);white-space:nowrap;'
+    +'position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:160px">Venditore</th>';
+  html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:12px;white-space:nowrap;border-right:1px solid var(--br)">'
+    +'<div>Completate</div><div style="font-size:11px;font-weight:400">/ '+totalL+'</div></th>';
+  allLessons.forEach(function(l){
+    html += '<th style="padding:4px 2px;text-align:center;min-width:52px;max-width:52px;vertical-align:bottom" title="'+esc(l.title)+' ('+esc(l.code)+')">'
+      +'<div style="writing-mode:vertical-lr;transform:rotate(180deg);height:110px;font-size:13px;font-weight:600;'
+      +'color:var(--mu);overflow:hidden;text-overflow:ellipsis;padding:0 2px;white-space:nowrap">'+esc(l.title.length>12?l.title.substring(0,12)+'...':l.title)+'</div>'
+      +'</th>';
+  });
+  html += '</tr></thead>';
+
+  // Righe venditori
+  html += '<tbody>';
+  vendStats.forEach(function(v, i){
+    var bg = i%2===0?'var(--cb)':'var(--sf)';
+    var summColor = v.pct>=80?'var(--ac)':v.pct>=50?'var(--info)':'var(--dng)';
+    html += '<tr style="border-bottom:1px solid var(--br)">';
+    // Nome + store (colonna sticky)
+    html += '<td style="padding:8px 12px;position:sticky;left:0;background:'+bg+';z-index:1;border-right:2px solid var(--br)">'
+      +'<div style="font-weight:600;color:var(--tx)">'+esc(v.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div>'
+      +'</td>';
+    // Completate
+    html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)">'
+      +'<span style="font-weight:700;color:'+summColor+'">'+v.done+'/'+totalL+'</span></td>';
+    // Celle lezioni
+    allLessons.forEach(function(l){
+      var pct = matrix[v.key][l.code];
+      var cell, bgCell;
+      if(pct===null){
+        cell = '<span title="Non ancora svolta" style="font-size:16px;color:var(--br)">&#9675;</span>';
+        bgCell = bg;
+      } else if(pct>=70){
+        cell = '<span title="'+pct+'% - superata" style="font-size:13px;font-weight:700;color:var(--ac)">'+pct+'%</span>';
+        bgCell = 'rgba(29,158,117,.08)';
+      } else {
+        cell = '<span title="'+pct+'% - sotto soglia" style="font-size:13px;font-weight:700;color:var(--dng)">'+pct+'%</span>';
+        bgCell = 'rgba(226,75,74,.06)';
+      }
+      html += '<td style="padding:6px 2px;text-align:center;background:'+bgCell+'">'+cell+'</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  // Legenda
+  html += '<div style="padding:.625rem 1rem;border-top:1px solid var(--br);display:flex;gap:1.25rem;flex-wrap:wrap">';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (≥70%)</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="color:var(--br);font-size:16px">&#9675;</span> Non ancora svolta</span>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center">'
+    +'<i class="ti ti-info-circle"></i> Mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
+
   el.innerHTML = html;
 }
 
