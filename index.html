@@ -729,6 +729,7 @@ async function goLogin(){
   showLoad('Caricamento...');
   await loadStores();
   await loadLessons();
+  await loadActiveLesson();
   hideLoad();
   populateSel();
   renderLoginLessons();
