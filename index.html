@@ -194,16 +194,25 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
     <div class="card">
       <div class="ch"><i class="ti ti-login"></i><h2>Accesso studente</h2></div>
       <div class="field">
-        <label>Nome e cognome</label>
+        <label>Codice dipendente</label>
         <div class="flex gap2 ac">
-          <input type="text" id="ln" placeholder="es. Mario Rossi" autocomplete="name" style="flex:1">
-          <button class="btn sm" id="btn-change-name" onclick="showNameModal(true)" style="white-space:nowrap;display:none"><i class="ti ti-pencil"></i> Cambia</button>
+          <input type="text" id="ec" placeholder="es. SCA001" autocomplete="off" style="flex:1;text-transform:uppercase;letter-spacing:1px;font-weight:600" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveEmployeeCode();}">
+          <button class="btn sm" onclick="resolveEmployeeCode()" title="Cerca"><i class="ti ti-search"></i></button>
         </div>
       </div>
-      <div class="field">
-        <label>Store di riferimento</label>
-        <select id="ls"><option value="">— Seleziona lo store —</option></select>
+      <div id="emp-info" style="display:none;background:rgba(29,158,117,.08);border:1px solid var(--ac);border-radius:8px;padding:.625rem .875rem;margin-bottom:.5rem">
+        <div style="display:flex;align-items:center;gap:.625rem">
+          <i class="ti ti-circle-check" style="color:var(--ac);font-size:18px;flex-shrink:0"></i>
+          <div style="flex:1">
+            <div style="font-weight:700;color:var(--tx);font-size:15px" id="emp-name-display"></div>
+            <div style="font-size:12px;color:var(--mu);margin-top:1px" id="emp-store-display"></div>
+          </div>
+          <button onclick="resetEmpCode()" style="background:none;border:none;cursor:pointer;color:var(--mu);padding:2px 4px;font-size:16px" title="Cambia"><i class="ti ti-x"></i></button>
+        </div>
       </div>
+      <div id="emp-err" style="display:none;color:var(--dng);font-size:13px;margin-bottom:.5rem;padding:6px 10px;background:var(--dng-l);border-radius:6px;border:1px solid var(--dng)"></div>
+      <input type="hidden" id="ln">
+      <input type="hidden" id="ls">
       <div class="field">
         <label>Codice lezione</label>
         <input type="text" id="lc" placeholder="es. ARR-001" style="text-transform:uppercase" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
@@ -232,6 +241,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
     <button class="tab" id="tab-results" onclick="aTab('results')"><i class="ti ti-chart-bar"></i> Risultati</button>
     <button class="tab" id="tab-rank" onclick="aTab('rank')"><i class="ti ti-trophy"></i> Classifica</button>
     <button class="tab" id="tab-storico" onclick="aTab('storico')"><i class="ti ti-history"></i> Storico</button>
+    <button class="tab" id="tab-employees" onclick="aTab('employees')"><i class="ti ti-users"></i> Dipendenti</button>
     <button class="tab" id="tab-live" onclick="aTab('live')"><i class="ti ti-radio"></i> Live<span class="live-badge" id="live-count-badge">0</span></button>
   </div>
 
@@ -304,6 +314,39 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
         </div>
       </div>
       <div id="rank-body"><div class="mu sm-tx">Caricamento...</div></div>
+    </div>
+    <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
+  </div>
+
+  <!-- DIPENDENTI TAB -->
+  <div id="ap-employees" style="display:none">
+    <div class="card">
+      <div class="ch"><i class="ti ti-user-plus" style="color:var(--ac)"></i><h2>Aggiungi dipendente</h2></div>
+      <div style="display:grid;grid-template-columns:1fr 2fr 2fr auto;gap:.75rem;align-items:end;flex-wrap:wrap">
+        <div class="field" style="margin:0">
+          <label style="font-size:12px">Codice</label>
+          <div style="display:flex;gap:4px">
+            <input type="text" id="new-emp-code" placeholder="SCA001" style="text-transform:uppercase;font-family:monospace;font-weight:700;letter-spacing:1px;width:100%" oninput="this.value=this.value.toUpperCase()">
+            <button class="btn sm" onclick="autoGenEmpCode()" title="Genera automatico" style="flex-shrink:0"><i class="ti ti-wand"></i></button>
+          </div>
+        </div>
+        <div class="field" style="margin:0">
+          <label style="font-size:12px">Nome e cognome</label>
+          <input type="text" id="new-emp-name" placeholder="Mario Rossi">
+        </div>
+        <div class="field" style="margin:0">
+          <label style="font-size:12px">Store</label>
+          <select id="new-emp-store"><option value="">— Seleziona store —</option></select>
+        </div>
+        <button class="btn pr" onclick="submitNewEmployee()" style="white-space:nowrap"><i class="ti ti-plus"></i> Aggiungi</button>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:.875rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--br)">
+        <div style="display:flex;align-items:center;gap:.5rem"><i class="ti ti-users" style="color:var(--ac)"></i><span style="font-weight:700">Lista dipendenti</span></div>
+        <button class="btn sm" onclick="loadEmployees()"><i class="ti ti-refresh"></i> Aggiorna</button>
+      </div>
+      <div id="emp-list"><div class="mu sm-tx" style="padding:2rem;text-align:center">Caricamento...</div></div>
     </div>
     <button class="btn mt2" onclick="goLogin()"><i class="ti ti-arrow-left"></i> Login</button>
   </div>
@@ -493,6 +536,8 @@ function hideLoad(){ document.getElementById('loading-overlay').style.display='n
 var lessons = {};   // code -> lesson object (with imgs as URLs)
 var results = [];   // local session results cache
 var stores = [];    // array of store names
+var employees = []; // array of {code, name, store}
+var _empMap = {};   // code -> {name, store}
 var activeLesson = '';  // codice lezione attiva del giorno (da Supabase settings)
 var _md = {};       // module builder: _md[i] = {imgs:[], imgFiles:[], questions:[]}
 
@@ -540,6 +585,135 @@ function renderStoresList(){
     return '<div class="store-tag">'+esc(s.name)
       +'<button onclick="removeStoreById(\''+s.id+'\')\">&times;</button></div>';
   }).join('');
+}
+
+// ─── SUPABASE: EMPLOYEES ──────────────────────────────────────────────────────
+async function loadEmployees(){
+  var {data,error}=await sb.from('employees').select('*').order('store').order('name');
+  if(error){console.error(error);return;}
+  employees=data||[];
+  _empMap={};
+  employees.forEach(function(e){ _empMap[e.code]={name:e.name,store:e.store}; });
+  renderEmployees();
+  populateNewEmpStoreSelect();
+}
+
+function populateNewEmpStoreSelect(){
+  var sel=document.getElementById('new-emp-store');
+  if(!sel) return;
+  var cur=sel.value;
+  sel.innerHTML='<option value="">— Seleziona store —</option>';
+  stores.forEach(function(s){ sel.innerHTML+='<option value="'+esc(s.name)+'">'+esc(s.name)+'</option>'; });
+  if(cur) sel.value=cur;
+}
+
+function generateEmpCode(storeName){
+  var prefix=storeName.replace(/[^a-zA-Z]/g,'').substring(0,3).toUpperCase();
+  if(!prefix) prefix='EMP';
+  var max=0;
+  employees.forEach(function(e){
+    if(e.code.startsWith(prefix)){
+      var n=parseInt(e.code.slice(prefix.length),10);
+      if(!isNaN(n)&&n>max) max=n;
+    }
+  });
+  return prefix+String(max+1).padStart(3,'0');
+}
+
+function autoGenEmpCode(){
+  var store=document.getElementById('new-emp-store').value;
+  if(!store){alert('Seleziona prima lo store.');return;}
+  document.getElementById('new-emp-code').value=generateEmpCode(store);
+}
+
+async function submitNewEmployee(){
+  var code=document.getElementById('new-emp-code').value.trim().toUpperCase();
+  var name=document.getElementById('new-emp-name').value.trim();
+  var store=document.getElementById('new-emp-store').value;
+  if(!code||!name||!store){alert('Compila tutti i campi.');return;}
+  var {error}=await sb.from('employees').upsert({code:code,name:name,store:store},{onConflict:'code'});
+  if(error){alert('Errore: '+error.message);return;}
+  document.getElementById('new-emp-code').value='';
+  document.getElementById('new-emp-name').value='';
+  await loadEmployees();
+}
+
+async function deleteEmployee(code){
+  if(!confirm('Eliminare il dipendente con codice '+code+'?')) return;
+  var {error}=await sb.from('employees').delete().eq('code',code);
+  if(error){alert('Errore: '+error.message);return;}
+  await loadEmployees();
+}
+
+function renderEmployees(){
+  var el=document.getElementById('emp-list');
+  if(!el) return;
+  if(!employees.length){
+    el.innerHTML='<div style="color:var(--mu);text-align:center;padding:2rem;font-size:14px">Nessun dipendente ancora. Aggiungine uno qui sopra.</div>';
+    return;
+  }
+  var html='<table style="width:100%;border-collapse:collapse;font-size:14px">'
+    +'<thead><tr style="background:var(--sf)">'
+    +'<th style="padding:8px 12px;text-align:left;font-weight:600;color:var(--mu);white-space:nowrap">Codice</th>'
+    +'<th style="padding:8px 12px;text-align:left;font-weight:600;color:var(--mu)">Nome</th>'
+    +'<th style="padding:8px 12px;text-align:left;font-weight:600;color:var(--mu)">Store</th>'
+    +'<th style="padding:8px 4px;text-align:center;font-weight:600;color:var(--mu)"></th>'
+    +'</tr></thead><tbody>';
+  employees.forEach(function(e,i){
+    var bg=i%2===0?'var(--cb)':'var(--sf)';
+    var safeCode=e.code.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    html+='<tr style="border-bottom:1px solid var(--br)">'
+      +'<td style="padding:8px 12px;background:'+bg+';font-family:monospace;font-weight:700;color:var(--ac);letter-spacing:1px">'+esc(e.code)+'</td>'
+      +'<td style="padding:8px 12px;background:'+bg+';color:var(--tx)">'+esc(e.name)+'</td>'
+      +'<td style="padding:8px 12px;background:'+bg+';color:var(--mu);font-size:13px">'+esc(e.store)+'</td>'
+      +'<td style="padding:8px 4px;background:'+bg+';text-align:center">'
+      +'<button data-code="'+safeCode+'" onclick="deleteEmployee(this.dataset.code)" style="background:none;border:none;cursor:pointer;color:var(--dng);font-size:15px;padding:2px 6px" title="Elimina"><i class="ti ti-trash"></i></button>'
+      +'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+async function resolveEmployeeCode(){
+  var code=document.getElementById('ec').value.trim().toUpperCase();
+  var infoEl=document.getElementById('emp-info');
+  var errEl=document.getElementById('emp-err');
+  if(!code){ infoEl.style.display='none'; errEl.style.display='none'; return; }
+  if(_empMap[code]){
+    showEmpInfo(code,_empMap[code]);
+    return;
+  }
+  var {data,error}=await sb.from('employees').select('*').eq('code',code).maybeSingle();
+  if(error||!data){
+    infoEl.style.display='none';
+    errEl.textContent='Codice "'+code+'" non trovato. Chiedi al formatore il tuo codice personale.';
+    errEl.style.display='block';
+    document.getElementById('ln').value='';
+    document.getElementById('ls').value='';
+    return;
+  }
+  _empMap[code]={name:data.name,store:data.store};
+  showEmpInfo(code,data);
+}
+
+function showEmpInfo(code,emp){
+  document.getElementById('emp-name-display').textContent=emp.name;
+  document.getElementById('emp-store-display').textContent=emp.store;
+  document.getElementById('emp-info').style.display='block';
+  document.getElementById('emp-err').style.display='none';
+  document.getElementById('ln').value=emp.name;
+  document.getElementById('ls').value=emp.store;
+  localStorage.setItem('ua_emp_code',code);
+}
+
+function resetEmpCode(){
+  document.getElementById('ec').value='';
+  document.getElementById('emp-info').style.display='none';
+  document.getElementById('emp-err').style.display='none';
+  document.getElementById('ln').value='';
+  document.getElementById('ls').value='';
+  localStorage.removeItem('ua_emp_code');
 }
 
 // ─── SUPABASE: LESSONS ────────────────────────────────────────────────────────
@@ -757,12 +931,13 @@ async function goAdmin(){
 }
 
 function aTab(t){
-  ['lessons','stores','results','rank','storico','live'].forEach(function(x){
+  ['lessons','stores','results','rank','storico','employees','live'].forEach(function(x){
     document.getElementById('ap-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
   if(t==='live') renderLive();
   if(t==='storico'){ renderStoricoFilters(); renderStorico(); }
+  if(t==='employees'){ loadEmployees(); }
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────────
@@ -813,38 +988,10 @@ function saveNameToStorage(n){ localStorage.setItem(CONSULTANT_NAME_KEY, n); }
 function saveStoreToStorage(s){ localStorage.setItem(CONSULTANT_STORE_KEY, s); }
 
 function initLoginName(){
-  var saved = getSavedName();
-  var savedStore = getSavedStore();
-  var lnEl = document.getElementById('ln');
-  var btnChange = document.getElementById('btn-change-name');
-  if(saved){
-    lnEl.value = saved;
-    lnEl.readOnly = true;
-    lnEl.style.background = 'var(--sf)';
-    btnChange.style.display = 'inline-flex';
-  } else {
-    showNameModal(false);
-  }
-  // Ripristina lo store salvato
-  if(savedStore){
-    var storeSelect = document.getElementById('ls');
-    if(storeSelect){
-      // Attende che le opzioni siano caricate
-      function trySetStore(){
-        var found = false;
-        for(var i=0;i<storeSelect.options.length;i++){
-          if(storeSelect.options[i].value===savedStore){
-            storeSelect.value=savedStore;
-            found=true;
-            break;
-          }
-        }
-        if(!found && storeSelect.options.length<=1){
-          setTimeout(trySetStore,200);
-        }
-      }
-      trySetStore();
-    }
+  var savedCode = localStorage.getItem('ua_emp_code');
+  if(savedCode){
+    var ecEl = document.getElementById('ec');
+    if(ecEl){ ecEl.value = savedCode; resolveEmployeeCode(); }
   }
 }
 
@@ -864,11 +1011,6 @@ function saveName(){
   var v = document.getElementById('name-input').value.trim();
   if(!v){ document.getElementById('name-err').style.display='block'; return; }
   saveNameToStorage(v);
-  var lnEl = document.getElementById('ln');
-  lnEl.value = v;
-  lnEl.readOnly = true;
-  lnEl.style.background = 'var(--sf)';
-  document.getElementById('btn-change-name').style.display='inline-flex';
   closeNameModal();
 }
 
@@ -1373,20 +1515,17 @@ function syncQOpt(mi,qi,j,v){_md[mi].questions[qi].opts[j]=v;}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 function doLogin(){
-  var lnEl=document.getElementById('ln');
-  // If field is readOnly, unlock to read value
-  lnEl.readOnly=false;
-  var name=lnEl.value.trim();
-  var store=document.getElementById('ls').value;
+  var name=document.getElementById('ln').value.trim();
+  var store=document.getElementById('ls').value.trim();
   var code=document.getElementById('lc').value.trim().toUpperCase();
   var err=document.getElementById('lerr');
 
-  if(!name){
-    // If no name at all, prompt name modal first
-    showNameModal(false);
-    err.textContent='Inserisci nome e cognome.';err.style.display='block';return;
+  if(!name||!store){
+    err.textContent='Inserisci il tuo codice dipendente e premi il tasto Cerca.';
+    err.style.display='block';
+    document.getElementById('ec').focus();
+    return;
   }
-  if(!store){err.textContent='Seleziona lo store.';err.style.display='block';return;}
   if(!code){err.textContent='Inserisci il codice lezione.';err.style.display='block';return;}
 
   var lesson=lessons[code];
@@ -1734,6 +1873,8 @@ function importLessonJSON(input){
 // ─── STORICO ──────────────────────────────────────────────────────────────────
 var _curSTab = 'sessioni';
 var _percorsoMode = 'store';
+var _hiddenVendors = JSON.parse(localStorage.getItem('ua_hidden_vendors')||'{}');
+var _showHiddenVendors = false;
 
 function sTab(t){
   _curSTab = t;
@@ -2118,6 +2259,9 @@ function renderPercorsoVenditori(){
     return;
   }
 
+  var hiddenCount = vendList.filter(function(v){ return _hiddenVendors[v.name+'|||'+v.store]; }).length;
+  var displayList = _showHiddenVendors ? vendList : vendList.filter(function(v){ return !_hiddenVendors[v.name+'|||'+v.store]; });
+
   var totalL = allLessons.length;
 
   // Matrice: miglior risultato per venditore x lezione (su TUTTI i risultati, senza filtro data)
@@ -2136,7 +2280,7 @@ function renderPercorsoVenditori(){
   });
 
   // Stats per venditore
-  var vendStats = vendList.map(function(v){
+  var vendStats = displayList.map(function(v){
     var k = v.name+'|||'+v.store;
     var done=0, total=0;
     allLessons.forEach(function(l){
@@ -2151,7 +2295,13 @@ function renderPercorsoVenditori(){
   html += '<div style="padding:.875rem 1rem .5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">';
   html += '<div style="display:flex;align-items:center;gap:.5rem"><i class="ti ti-user" style="color:var(--ac);font-size:18px"></i>'
     +'<span style="font-weight:700;font-size:16px">Percorso per Venditore</span></div>';
-  html += '<span style="font-size:13px;color:var(--mu)">'+vendList.length+' venditori</span>';
+  html += '<div style="display:flex;align-items:center;gap:.5rem">';
+  html += '<span style="font-size:13px;color:var(--mu)">'+displayList.length+' venditori</span>';
+  if(hiddenCount>0){
+    html += '<button onclick="toggleShowHiddenVendors()" style="font-size:12px;padding:3px 10px;border-radius:99px;border:1px solid var(--br);background:var(--sf);color:var(--mu);cursor:pointer">'
+      +(_showHiddenVendors?'<i class="ti ti-eye-off"></i> Nascondi esclusi':'<i class="ti ti-eye"></i> Mostra esclusi ('+hiddenCount+')')+'</button>';
+  }
+  html += '</div>';
   html += '</div>';
 
   // Tabella
@@ -2177,11 +2327,20 @@ function renderPercorsoVenditori(){
   vendStats.forEach(function(v, i){
     var bg = i%2===0?'var(--cb)':'var(--sf)';
     var summColor = v.pct>=80?'var(--ac)':v.pct>=50?'var(--info)':'var(--dng)';
-    html += '<tr style="border-bottom:1px solid var(--br)">';
+    var isHid = !!_hiddenVendors[v.key];
+    var safeKey = v.key.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
+    html += '<tr style="border-bottom:1px solid var(--br)'+(isHid?';opacity:.55':'')+'">';
     // Nome + store (colonna sticky)
     html += '<td style="padding:8px 12px;position:sticky;left:0;background:'+bg+';z-index:1;border-right:2px solid var(--br)">'
-      +'<div style="font-weight:600;color:var(--tx)">'+esc(v.name)+'</div>'
-      +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div>'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;gap:4px">'
+      +'<div><div style="font-weight:600;color:var(--tx)">'+esc(v.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div></div>'
+      +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" '
+      +'title="'+(isHid?'Ripristina venditore':'Nascondi venditore')+'" '
+      +'style="background:none;border:none;cursor:pointer;color:var(--mu);padding:2px 4px;font-size:15px;opacity:.35;flex-shrink:0" '
+      +'onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">'
+      +'<i class="ti ti-'+(isHid?'eye':'eye-off')+'"></i></button>'
+      +'</div>'
       +'</td>';
     // Completate
     html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)">'
@@ -2221,6 +2380,17 @@ function renderPercorsoVenditori(){
     +'<i class="ti ti-info-circle"></i> Mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
 
   el.innerHTML = html;
+}
+
+function toggleHideVendor(key){
+  if(_hiddenVendors[key]) delete _hiddenVendors[key];
+  else _hiddenVendors[key] = true;
+  localStorage.setItem('ua_hidden_vendors', JSON.stringify(_hiddenVendors));
+  renderPercorsoVenditori();
+}
+function toggleShowHiddenVendors(){
+  _showHiddenVendors = !_showHiddenVendors;
+  renderPercorsoVenditori();
 }
 
 function scrollToStoreRow(name){
