@@ -212,7 +212,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
       </div>
       <div id="emp-err" style="display:none;color:var(--dng);font-size:13px;margin-bottom:.5rem;padding:6px 10px;background:var(--dng-l);border-radius:6px;border:1px solid var(--dng)"></div>
       <input type="hidden" id="ln">
-      <input type="hidden" id="ls">
+      <select id="ls" style="display:none"></select>
       <div class="field">
         <label>Codice lezione</label>
         <input type="text" id="lc" placeholder="es. ARR-001" style="text-transform:uppercase" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
@@ -703,7 +703,12 @@ function showEmpInfo(code,emp){
   document.getElementById('emp-info').style.display='block';
   document.getElementById('emp-err').style.display='none';
   document.getElementById('ln').value=emp.name;
-  document.getElementById('ls').value=emp.store;
+  var lsSel=document.getElementById('ls');
+  // Aggiunge opzione se non presente, poi la seleziona
+  var found=false;
+  for(var i=0;i<lsSel.options.length;i++){ if(lsSel.options[i].value===emp.store){found=true;break;} }
+  if(!found){ var o=document.createElement('option');o.value=emp.store;o.textContent=emp.store;lsSel.appendChild(o); }
+  lsSel.value=emp.store;
   localStorage.setItem('ua_emp_code',code);
 }
 
