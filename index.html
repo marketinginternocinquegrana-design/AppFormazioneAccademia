@@ -196,7 +196,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
       <div class="field">
         <label>Codice dipendente</label>
         <div class="flex gap2 ac">
-          <input type="text" id="ec" placeholder="es. SCA001" autocomplete="off" style="flex:1;text-transform:uppercase;letter-spacing:1px;font-weight:600" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveEmployeeCode();}">
+          <input type="text" id="ec" placeholder="es. SCA001" autocomplete="off" style="flex:1;text-transform:uppercase;letter-spacing:1px;font-weight:600" oninput="this.value=this.value.toUpperCase()" onblur="resolveEmployeeCode()" onkeydown="if(event.key==='Enter'){event.preventDefault();resolveEmployeeCode();}">
           <button class="btn sm" onclick="resolveEmployeeCode()" title="Cerca"><i class="ti ti-search"></i></button>
         </div>
       </div>
@@ -866,6 +866,7 @@ async function loadResults(){
   var {data,error}=await sb.from('results').select('*').order('created_at',{ascending:false});
   if(error){console.error(error);return;}
   results=data.map(function(r){return {
+    id:r.id,
     user:r.user_name, store:r.store,
     lesson:r.lesson_title, code:r.lesson_code,
     ok:r.ok, tot:r.tot, pct:r.pct,
@@ -889,6 +890,22 @@ async function saveResult(res){
     renderResults();
     renderRank();
   }
+}
+
+async function deleteResult(id){
+  if(!confirm('Eliminare questa sessione? L\'operazione non è reversibile.')) return;
+  var {error}=await sb.from('results').delete().eq('id',id);
+  if(error){alert('Errore: '+error.message);return;}
+  await loadResults();
+  renderStorico();
+}
+
+async function deleteVendorResults(name, store){
+  if(!confirm('Eliminare TUTTI i risultati di "'+name+'" ('+store+')? L\'operazione non è reversibile.')) return;
+  var {error}=await sb.from('results').delete().eq('user_name',name).eq('store',store);
+  if(error){alert('Errore: '+error.message);return;}
+  await loadResults();
+  renderPercorso();
 }
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
@@ -1514,14 +1531,18 @@ function syncQ(mi,qi,f,v){
 function syncQOpt(mi,qi,j,v){_md[mi].questions[qi].opts[j]=v;}
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-function doLogin(){
+async function doLogin(){
+  // Auto-risolve il codice dipendente se non ancora fatto
+  if(!document.getElementById('ln').value.trim()){
+    await resolveEmployeeCode();
+  }
   var name=document.getElementById('ln').value.trim();
   var store=document.getElementById('ls').value.trim();
   var code=document.getElementById('lc').value.trim().toUpperCase();
   var err=document.getElementById('lerr');
 
   if(!name||!store){
-    err.textContent='Inserisci il tuo codice dipendente e premi il tasto Cerca.';
+    err.textContent='Codice dipendente non trovato. Controlla il codice e riprova.';
     err.style.display='block';
     document.getElementById('ec').focus();
     return;
@@ -1957,6 +1978,7 @@ function renderStoricoSessioni(data){
       +'<div class="mu" style="font-size:11px">'+r.ok+'/'+r.tot+' · '+r.timeStr+'</div>'
       +'</div>'
       +'<button class="btn sm" onclick="exportOnePDF('+i+')" title="Esporta PDF"><i class="ti ti-file-export"></i></button>'
+      +'<button data-rid="'+r.id+'" onclick="deleteResult(this.dataset.rid)" title="Elimina sessione" style="background:none;border:none;cursor:pointer;color:var(--dng);font-size:16px;padding:2px 4px;opacity:.5" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5"><i class="ti ti-trash"></i></button>'
       +'</div></div>';
   }).join('');
 }
@@ -2240,10 +2262,8 @@ function renderPercorsoVenditori(){
     return;
   }
 
-  // Filtra store se filtro attivo
   var sf = document.getElementById('storico-store-filter').value;
 
-  // Costruisci elenco venditori unici (nome|store)
   var vendSet = {};
   results.forEach(function(r){
     if(sf && r.store!==sf) return;
@@ -2264,7 +2284,6 @@ function renderPercorsoVenditori(){
 
   var totalL = allLessons.length;
 
-  // Matrice: miglior risultato per venditore x lezione (su TUTTI i risultati, senza filtro data)
   var matrix = {};
   vendList.forEach(function(v){
     var k = v.name+'|||'+v.store;
@@ -2279,7 +2298,6 @@ function renderPercorsoVenditori(){
     if(matrix[k][r.code]===null || r.pct > matrix[k][r.code]) matrix[k][r.code]=r.pct;
   });
 
-  // Stats per venditore
   var vendStats = displayList.map(function(v){
     var k = v.name+'|||'+v.store;
     var done=0, total=0;
@@ -2291,7 +2309,6 @@ function renderPercorsoVenditori(){
 
   var html = '<div class="card" style="overflow:hidden;padding:0">';
 
-  // Header
   html += '<div style="padding:.875rem 1rem .5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">';
   html += '<div style="display:flex;align-items:center;gap:.5rem"><i class="ti ti-user" style="color:var(--ac);font-size:18px"></i>'
     +'<span style="font-weight:700;font-size:16px">Percorso per Venditore</span></div>';
@@ -2304,14 +2321,12 @@ function renderPercorsoVenditori(){
   html += '</div>';
   html += '</div>';
 
-  // Tabella
   html += '<div style="overflow-x:auto">';
   html += '<table style="border-collapse:collapse;font-size:14px;min-width:100%">';
 
-  // Header row
   html += '<thead><tr style="background:var(--sf)">';
   html += '<th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--tx);white-space:nowrap;'
-    +'position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:160px">Venditore</th>';
+    +'position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:180px">Venditore</th>';
   html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:12px;white-space:nowrap;border-right:1px solid var(--br)">'
     +'<div>Completate</div><div style="font-size:11px;font-weight:400">/ '+totalL+'</div></th>';
   allLessons.forEach(function(l){
@@ -2322,30 +2337,27 @@ function renderPercorsoVenditori(){
   });
   html += '</tr></thead>';
 
-  // Righe venditori
   html += '<tbody>';
   vendStats.forEach(function(v, i){
     var bg = i%2===0?'var(--cb)':'var(--sf)';
     var summColor = v.pct>=80?'var(--ac)':v.pct>=50?'var(--info)':'var(--dng)';
     var isHid = !!_hiddenVendors[v.key];
+    var safeName = v.name.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    var safeStore = v.store.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     var safeKey = v.key.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;');
     html += '<tr style="border-bottom:1px solid var(--br)'+(isHid?';opacity:.55':'')+'">';
-    // Nome + store (colonna sticky)
     html += '<td style="padding:8px 12px;position:sticky;left:0;background:'+bg+';z-index:1;border-right:2px solid var(--br)">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:4px">'
       +'<div><div style="font-weight:600;color:var(--tx)">'+esc(v.name)+'</div>'
       +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div></div>'
-      +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" '
-      +'title="'+(isHid?'Ripristina venditore':'Nascondi venditore')+'" '
-      +'style="background:none;border:none;cursor:pointer;color:var(--mu);padding:2px 4px;font-size:15px;opacity:.35;flex-shrink:0" '
-      +'onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35">'
-      +'<i class="ti ti-'+(isHid?'eye':'eye-off')+'"></i></button>'
+      +'<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">'
+      +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" title="'+(isHid?'Ripristina':'Nascondi')+'" style="background:none;border:none;cursor:pointer;color:var(--mu);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-'+(isHid?'eye':'eye-off')+'"></i></button>'
+      +'<button data-name="'+safeName+'" data-store="'+safeStore+'" onclick="deleteVendorResults(this.dataset.name,this.dataset.store)" title="Elimina tutti i risultati" style="background:none;border:none;cursor:pointer;color:var(--dng);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-trash"></i></button>'
+      +'</div>'
       +'</div>'
       +'</td>';
-    // Completate
     html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)">'
       +'<span style="font-weight:700;color:'+summColor+'">'+v.done+'/'+totalL+'</span></td>';
-    // Celle lezioni
     allLessons.forEach(function(l){
       var pct = matrix[v.key][l.code];
       var cell, bgCell;
@@ -2365,10 +2377,9 @@ function renderPercorsoVenditori(){
   });
   html += '</tbody></table></div>';
 
-  // Legenda
   html += '<div style="padding:.625rem 1rem;border-top:1px solid var(--br);display:flex;gap:1.25rem;flex-wrap:wrap">';
   html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (≥70%)</span>';
+    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (&ge;70%)</span>';
   html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
     +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
   html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
@@ -2404,97 +2415,6 @@ function statCard(val,lbl,color){
     +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+lbl+'</div>'
     +'</div>';
 }
-
-function renderRank(){
-  var fStore=document.getElementById('rank-filter').value,el=document.getElementById('rank-body');
-  var data=fStore?results.filter(function(r){return r.store===fStore;}):results;
-  if(!data.length){el.innerHTML='<div class="mu sm-tx">Nessun dato'+(fStore?' per questo store':'')+' ancora.</div>';return;}
-  var byUser={};
-  data.forEach(function(r){
-    var k=r.user+'|'+r.store;
-    if(!byUser[k]) byUser[k]={user:r.user,store:r.store,sessions:0,totalPct:0,bestPct:0};
-    var u=byUser[k];u.sessions++;u.totalPct+=r.pct;u.bestPct=Math.max(u.bestPct,r.pct);
-  });
-  var sorted=Object.values(byUser).sort(function(a,b){return(b.totalPct/b.sessions)-(a.totalPct/a.sessions);});
-  var medals=['m1','m2','m3'];
-  el.innerHTML='<table class="rank-table"><thead><tr><th style="width:40px">#</th><th>Arredatore</th><th>Store</th>'
-    +'<th style="text-align:right">Media</th><th style="text-align:right">Migliore</th><th style="text-align:right">Sessioni</th></tr></thead><tbody>'
-    +sorted.map(function(u,i){
-      var avg=Math.round(u.totalPct/u.sessions);
-      var pos=i<3?'<span class="medal '+medals[i]+'">'+(i+1)+'</span>':'<span style="color:var(--mu);font-size:13px">'+(i+1)+'</span>';
-      return '<tr><td style="text-align:center">'+pos+'</td><td class="f600">'+esc(u.user)+'</td><td class="mu">'+esc(u.store)+'</td>'
-        +'<td style="text-align:right;font-weight:600;color:'+(avg>=70?'var(--ac)':'var(--dng)')+'">'+avg+'%</td>'
-        +'<td style="text-align:right;color:var(--ac);font-weight:600">'+u.bestPct+'%</td>'
-        +'<td style="text-align:right;color:var(--mu)">'+u.sessions+'</td></tr>';
-    }).join('')+'</tbody></table>';
-}
-
-// ─── PDF ─────────────────────────────────────────────────────────────────────────────────
-function buildPDF(r){
-  var jsPDF=window.jspdf.jsPDF;
-  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
-  doc.setFillColor(29,158,117);doc.rect(0,0,pw,32,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
-  doc.text('Unlimited Accademy',14,13);
-  doc.setFontSize(10);doc.setFont('helvetica','normal');
-  doc.text('Risultato — '+r.lesson,14,21);
-  doc.text('Codice: '+r.code+' · '+r.date,14,28);
-  doc.setTextColor(30,30,30);var y=44;
-  var row=function(lbl,val,color){
-    doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);doc.text(lbl,14,y);
-    doc.setFont('helvetica','bold');if(color)doc.setTextColor.apply(doc,color);else doc.setTextColor(30,30,30);
-    doc.text(String(val),75,y);doc.setTextColor(30,30,30);y+=8;
-  };
-  row('Arredatore:',r.user);row('Store:',r.store);row('Tempo:',r.timeStr);
-  row('Punteggio:',r.pct+'%',r.pct>=70?[29,158,117]:[226,75,74]);
-  row('Corrette:',r.ok+' su '+r.tot);row('Timeout:',r.to);
-  if(r.answers&&r.answers.length){
-    y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=8;
-    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);
-    doc.text('Dettaglio risposte',14,y);y+=8;
-    r.answers.forEach(function(a){
-      if(y>ph-20){doc.addPage();y=20;}
-      var ok=a.correct,to=a.timedOut;
-      doc.setFontSize(9);doc.setFont('helvetica','bold');
-      doc.setTextColor.apply(doc,to?[226,175,74]:ok?[29,158,117]:[226,75,74]);
-      doc.text(to?'[T]':ok?'[OK]':'[X]',14,y);
-      doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');
-      var lines=doc.splitTextToSize(a.qText||'',pw-36);
-      doc.text(lines,26,y);y+=lines.length*5+2;
-      if(!ok&&!to&&a.correctAns){
-        doc.setTextColor(100,100,100);
-        var al=doc.splitTextToSize('Corretta: '+a.correctAns,pw-36);
-        doc.text(al,26,y);y+=al.length*5+2;
-      }
-    });
-  }
-  doc.save('UA-'+r.code+'-'+r.user+'.pdf');
-}
-
-
-function addDemoLesson(){
-  lessons['DEMO-001']={
-    id:'demo',title:'Lezione Demo',code:'DEMO-001',desc:'Lezione dimostrativa per testare la piattaforma.',
-    dur:5,qsec:20,
-    modules:[{
-      title:'Modulo Demo',
-      slides:['Benvenuto nella lezione demo!','Questa è una slide di esempio.'],
-      slideTexts:['Testo della prima slide.','Testo della seconda slide.'],
-      images:[],
-      questions:[
-        {q:'Questa è una domanda demo?',type:'tf',correct:0,opts:[]},
-        {q:'Seleziona la risposta corretta:',type:'mc',opts:['Opzione A','Opzione B','Opzione C','Opzione D'],correct:0}
-      ]
-    }]
-  };
-}
-function exportOnePDF(i){buildPDF(results[i]);}
-function exportAllPDF(){results.forEach(function(r){buildPDF(r);});}
-function exportMyPDF(){if(S.lastResult)buildPDF(S.lastResult);}
-
-// ─── INIT ────────────────────────────────────────────────────────────────────────────────
-goLogin();
 </script>
 </body>
 </html>
