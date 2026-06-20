@@ -741,6 +741,21 @@ async function loadLessons(){
   addDemoLesson();
 }
 
+function addDemoLesson(){
+  lessons['DEMO-001']={
+    id:'demo', title:'Demo - Prova Quiz', code:'DEMO-001', desc:'Lezione dimostrativa per testare la piattaforma.',
+    dur:10, qsec:20,
+    modules:[
+      { imgs:[],
+        questions:[
+          {type:'tf', text:'Questa è una domanda vera o falsa di esempio.', choices:['Vero','Falso'], correct:0},
+          {type:'mc', text:'Quale dei seguenti è un elemento fondamentale della vendita?', choices:['Ascolto attivo','Parlare senza fermarsi','Ignorare il cliente','Leggere il catalogo'], correct:0}
+        ]
+      }
+    ]
+  };
+}
+
 // ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
 async function loadActiveLesson(){
   try{
