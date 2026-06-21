@@ -182,6 +182,18 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
   </div>
 </div>
 
+<!-- MODAL: CONFERMA ELIMINAZIONE -->
+<div class="modal-overlay" id="modal-confirm" style="display:none">
+  <div class="modal-box">
+    <h3 id="modal-confirm-title">Conferma</h3>
+    <p id="modal-confirm-msg"></p>
+    <div class="flex gap2 jb">
+      <button class="btn" onclick="closeConfirmModal()">Annulla</button>
+      <button class="btn" id="modal-confirm-ok" style="background:var(--dng);color:#fff;border-color:var(--dng)"><i class="ti ti-trash"></i> Elimina</button>
+    </div>
+  </div>
+</div>
+
 <div class="app">
 
 <!-- LOGIN -->
@@ -638,11 +650,12 @@ async function submitNewEmployee(){
   await loadEmployees();
 }
 
-async function deleteEmployee(code){
-  if(!confirm('Eliminare il dipendente con codice '+code+'?')) return;
-  var {error}=await sb.from('employees').delete().eq('code',code);
-  if(error){alert('Errore: '+error.message);return;}
-  await loadEmployees();
+function deleteEmployee(code){
+  showConfirm('Eliminare il dipendente con codice '+code+'?', async function(){
+    var {error}=await sb.from('employees').delete().eq('code',code);
+    if(error){alert('Errore: '+error.message);return;}
+    await loadEmployees();
+  });
 }
 
 function renderEmployees(){
@@ -869,16 +882,17 @@ async function saveLesson(){
 async function deleteLesson(code){
   var l=lessons[code];
   if(!l){renderSavedLessons();return;}
-  if(!window.confirm('Eliminare "'+l.title+'" ('+code+')?')) return;
-  showLoad('Eliminazione in corso...');
-  if(l.id){
-    var {error}=await sb.from('lessons').delete().eq('id',l.id);
-    if(error){hideLoad();alert('Errore eliminazione: '+error.message);return;}
-  }
-  hideLoad();
-  delete lessons[code];
-  renderSavedLessons();
-  renderLoginLessons();
+  showConfirm('Eliminare la lezione "'+l.title+'" ('+code+')?', async function(){
+    showLoad('Eliminazione in corso...');
+    if(l.id){
+      var {error}=await sb.from('lessons').delete().eq('id',l.id);
+      if(error){hideLoad();alert('Errore eliminazione: '+error.message);return;}
+    }
+    hideLoad();
+    delete lessons[code];
+    renderSavedLessons();
+    renderLoginLessons();
+  });
 }
 
 // ─── SUPABASE: RESULTS ───────────────────────────────────────────────────────
@@ -912,20 +926,22 @@ async function saveResult(res){
   }
 }
 
-async function deleteResult(id){
-  if(!confirm('Eliminare questa sessione? L\'operazione non è reversibile.')) return;
-  var {error}=await sb.from('results').delete().eq('id',id);
-  if(error){alert('Errore: '+error.message);return;}
-  await loadResults();
-  renderStorico();
+function deleteResult(id){
+  showConfirm('Eliminare questa sessione? L\'operazione non è reversibile.', async function(){
+    var {error}=await sb.from('results').delete().eq('id',id);
+    if(error){alert('Errore: '+error.message);return;}
+    await loadResults();
+    renderStorico();
+  });
 }
 
 async function deleteVendorResults(name, store){
-  if(!confirm('Eliminare TUTTI i risultati di "'+name+'" ('+store+')? L\'operazione non è reversibile.')) return;
-  var {error}=await sb.from('results').delete().eq('user_name',name).eq('store',store);
-  if(error){alert('Errore: '+error.message);return;}
-  await loadResults();
-  renderPercorso();
+  showConfirm('Eliminare TUTTI i risultati di "'+name+'" ('+store+')? Operazione irreversibile.', async function(){
+    var {error}=await sb.from('results').delete().eq('user_name',name).eq('store',store);
+    if(error){alert('Errore: '+error.message);return;}
+    await loadResults();
+    renderPercorso();
+  });
 }
 
 // ─── NAV ──────────────────────────────────────────────────────────────────────
@@ -973,6 +989,7 @@ function aTab(t){
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
   if(t==='live') renderLive();
+  if(t==='rank'){ renderRankFilter(); renderRank(); }
   if(t==='storico'){ renderStoricoFilters(); renderStorico(); }
   if(t==='employees'){ loadEmployees(); }
 }
@@ -994,6 +1011,18 @@ function openPwdModal(){
 }
 function closePwdModal(){
   document.getElementById('modal-pwd').style.display='none';
+}
+var _confirmCallback=null;
+function showConfirm(msg,cb,title){
+  document.getElementById('modal-confirm-title').textContent=title||'Conferma eliminazione';
+  document.getElementById('modal-confirm-msg').textContent=msg;
+  _confirmCallback=cb;
+  document.getElementById('modal-confirm-ok').onclick=function(){ closeConfirmModal(); if(_confirmCallback) _confirmCallback(); };
+  document.getElementById('modal-confirm').style.display='flex';
+}
+function closeConfirmModal(){
+  document.getElementById('modal-confirm').style.display='none';
+  _confirmCallback=null;
 }
 function checkPwd(){
   var v = document.getElementById('pwd-input').value;
@@ -1853,6 +1882,38 @@ function renderRankFilter(){
   sel.innerHTML='<option value="">Tutti gli store</option>';
   stores.forEach(function(s){var o=document.createElement('option');o.value=s.name;o.textContent=s.name;sel.appendChild(o);});
   sel.value=cur;
+}
+
+function renderRank(){
+  var el=document.getElementById('rank-body');
+  var sf=document.getElementById('rank-filter').value;
+  var data=results.filter(function(r){ return !sf || r.store===sf; });
+  if(!data.length){el.innerHTML='<div class="mu sm-tx">Nessun risultato ancora.</div>';return;}
+  // Raggruppa per utente+store, calcola miglior punteggio medio
+  var map={};
+  data.forEach(function(r){
+    var k=r.user+'||'+r.store;
+    if(!map[k]) map[k]={user:r.user,store:r.store,scores:[],count:0};
+    map[k].scores.push(r.pct);
+    map[k].count++;
+  });
+  var list=Object.values(map).map(function(m){
+    var avg=Math.round(m.scores.reduce(function(a,b){return a+b;},0)/m.scores.length);
+    var best=Math.max.apply(null,m.scores);
+    return {user:m.user,store:m.store,avg:avg,best:best,count:m.count};
+  }).sort(function(a,b){return b.avg-a.avg||b.best-a.best;});
+  var medals=['🥇','🥈','🥉'];
+  el.innerHTML=list.map(function(r,i){
+    var color=r.avg>=70?'var(--ac)':r.avg>=50?'var(--info)':'var(--dng)';
+    var medal=i<3?'<span style="font-size:18px;margin-right:6px">'+medals[i]+'</span>':'<span style="width:30px;display:inline-block;text-align:right;margin-right:6px;color:var(--mu);font-size:13px">'+(i+1)+'.</span>';
+    return '<div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--br)">'
+      +medal
+      +'<div style="flex:1"><div class="f600">'+esc(r.user)+'</div>'
+      +'<div class="mu" style="font-size:12px">'+esc(r.store)+' &middot; '+r.count+' sess.</div></div>'
+      +'<div style="text-align:right"><div class="f600" style="color:'+color+'">'+r.avg+'%</div>'
+      +'<div class="mu" style="font-size:11px">migliore: '+r.best+'%</div></div>'
+      +'</div>';
+  }).join('');
 }
 
 // ─── IMPORT LEZIONE DA JSON ────────────────────────────────────────────────────
