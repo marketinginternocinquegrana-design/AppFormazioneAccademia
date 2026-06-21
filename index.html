@@ -931,10 +931,9 @@ function deleteResult(id){
     showLoad('Eliminazione...');
     var {error}=await sb.from('results').delete().eq('id',id);
     hideLoad();
-    if(error){alert('Errore Supabase: '+error.message);return;}
+    if(error){alert('Errore: '+error.message);return;}
     await loadResults();
     renderStorico();
-    alert('Sessione eliminata.');
   });
 }
 
