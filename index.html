@@ -1293,28 +1293,25 @@ var LESSON_BUILDER_URL = 'https://marketinginternocinquegrana-design.github.io/l
 function openInLessonBuilder(code){
   var l = lessons[code];
   if(!l){ alert('Lezione non trovata.'); return; }
-  // Converti formato app (modules) → formato builder (sections)
-  var sections = (l.modules||[]).map(function(mod){
-    var imgs = mod.imgs||[];
-    var slideTexts = mod.slideTexts||[];
-    var slides = imgs.map(function(img,i){ return {img:img, text:slideTexts[i]||''}; });
-    if(!imgs.length && slideTexts.length){
-      slides = slideTexts.map(function(t){ return {img:'', text:t}; });
-    }
+  // Manda modules (formato app) ma aggiunge il campo "answer" che il builder usa
+  // per visualizzare la risposta corretta già selezionata
+  var modulesWithAnswer = (l.modules||[]).map(function(mod){
     var questions = (mod.questions||[]).map(function(q){
+      var q2 = JSON.parse(JSON.stringify(q));
       if(q.type==='tf'){
-        return {type:'tf', q:q.q, answer: q.correct==='Vero'};
+        q2.answer = (q.correct==='Vero');
       } else {
-        var ansIdx = (q.opts||[]).indexOf(q.correct);
-        return {type:'mc', q:q.q, opts:q.opts||[], answer: ansIdx>=0?ansIdx:0};
+        q2.answer = (q.opts||[]).indexOf(q.correct);
+        if(q2.answer < 0) q2.answer = 0;
       }
+      return q2;
     });
-    return {slides:slides, questions:questions};
+    return Object.assign({}, mod, {questions: questions});
   });
   var exportData = {
     code: l.code, title: l.title,
     dur: l.dur, timer: l.qsec||20,
-    desc: l.desc||'', sections: sections
+    desc: l.desc||'', modules: modulesWithAnswer
   };
   localStorage.setItem('ua_edit_lesson', JSON.stringify(exportData));
   localStorage.setItem('ua_edit_lesson_id', l.id);
