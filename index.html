@@ -928,10 +928,13 @@ async function saveResult(res){
 
 function deleteResult(id){
   showConfirm('Eliminare questa sessione? L\'operazione non è reversibile.', async function(){
+    showLoad('Eliminazione...');
     var {error}=await sb.from('results').delete().eq('id',id);
-    if(error){alert('Errore: '+error.message);return;}
+    hideLoad();
+    if(error){alert('Errore Supabase: '+error.message);return;}
     await loadResults();
     renderStorico();
+    alert('Sessione eliminata.');
   });
 }
 
