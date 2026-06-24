@@ -780,13 +780,15 @@ async function loadActiveLesson(){
 
 async function setActiveLesson(code){
   showLoad('Impostazione lezione del giorno...');
-  var delRes=await sb.from('settings').delete().eq('key','active_lesson');
-  var {data:insData,error}=await sb.from('settings').insert({key:'active_lesson',value:code}).select();
-  var {data:verify}=await sb.from('settings').select('value').eq('key','active_lesson').limit(1);
+  // Try UPDATE first (updates all existing rows with this key)
+  var {data:upd,error:updErr}=await sb.from('settings').update({value:code}).eq('key','active_lesson').select();
+  if(updErr){hideLoad();alert('Errore: '+updErr.message);return;}
+  // If no rows were updated, insert a new one
+  if(!upd||upd.length===0){
+    var {error:insErr}=await sb.from('settings').insert({key:'active_lesson',value:code});
+    if(insErr){hideLoad();alert('Errore: '+insErr.message);return;}
+  }
   hideLoad();
-  if(error){alert('Errore inserimento: '+error.message);return;}
-  var savedVal=(verify&&verify.length>0)?verify[0].value:'(vuoto)';
-  if(savedVal!==code){alert('Problema DB: salvato "'+code+'" ma riletto "'+savedVal+'". Controlla le policy Supabase della tabella settings.');return;}
   activeLesson=code;
   renderSavedLessons();
   alert('\u2705 Lezione del giorno impostata: '+code);
@@ -794,7 +796,7 @@ async function setActiveLesson(code){
 
 async function clearActiveLesson(){
   showLoad('Rimozione lezione del giorno...');
-  var {error}=await sb.from('settings').delete().eq('key','active_lesson');
+  var {error}=await sb.from('settings').update({value:''}).eq('key','active_lesson');
   hideLoad();
   if(error){alert('Errore: '+error.message);return;}
   activeLesson='';
