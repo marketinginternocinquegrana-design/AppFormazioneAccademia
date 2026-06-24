@@ -2583,6 +2583,21 @@ function exportAllPDF(){
   }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
 }
 
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+(async function(){
+  try {
+    showLoad('Caricamento...');
+    await loadStores();
+    await loadLessons();
+    await loadActiveLesson();
+    hideLoad();
+    populateSel();
+    renderLoginLessons();
+    initLoginName();
+  } catch(e){ hideLoad(); console.error('Init error:',e); }
+})();
+
 </script>
 </body>
 </html>
