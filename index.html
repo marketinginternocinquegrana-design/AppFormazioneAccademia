@@ -144,7 +144,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 @media(max-width:600px){.app{padding:.75rem}.tabs{flex-wrap:wrap}.tab{flex:none;width:calc(50% - 2px)}.rmg{grid-template-columns:1fr 1fr}.img-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}}
 </style>
 </head>
-<body onload="goLogin()">
+<body>
 
 <!-- LOADING OVERLAY -->
 <div id="loading-overlay" style="display:none">
@@ -772,9 +772,9 @@ function addDemoLesson(){
 // ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
 async function loadActiveLesson(){
   try{
-    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').order('id',{ascending:false}).limit(1);
+    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
     if(error){console.warn('loadActiveLesson:',error.message);activeLesson='';return;}
-    activeLesson=(data&&data.length>0&&data[0].value)?data[0].value:'';
+    activeLesson=data&&data.value?data.value:'';
   }catch(e){console.warn('loadActiveLesson exception:',e);activeLesson='';}
 }
 
@@ -928,9 +928,7 @@ async function saveResult(res){
 
 function deleteResult(id){
   showConfirm('Eliminare questa sessione? L\'operazione non è reversibile.', async function(){
-    showLoad('Eliminazione...');
     var {error}=await sb.from('results').delete().eq('id',id);
-    hideLoad();
     if(error){alert('Errore: '+error.message);return;}
     await loadResults();
     renderStorico();
@@ -1019,7 +1017,7 @@ function showConfirm(msg,cb,title){
   document.getElementById('modal-confirm-title').textContent=title||'Conferma eliminazione';
   document.getElementById('modal-confirm-msg').textContent=msg;
   _confirmCallback=cb;
-  document.getElementById('modal-confirm-ok').onclick=function(){ var cb=_confirmCallback; closeConfirmModal(); if(cb) cb(); };
+  document.getElementById('modal-confirm-ok').onclick=function(){ closeConfirmModal(); if(_confirmCallback) _confirmCallback(); };
   document.getElementById('modal-confirm').style.display='flex';
 }
 function closeConfirmModal(){
@@ -1293,25 +1291,10 @@ var LESSON_BUILDER_URL = 'https://marketinginternocinquegrana-design.github.io/l
 function openInLessonBuilder(code){
   var l = lessons[code];
   if(!l){ alert('Lezione non trovata.'); return; }
-  // Manda modules (formato app) ma aggiunge il campo "answer" che il builder usa
-  // per visualizzare la risposta corretta già selezionata
-  var modulesWithAnswer = (l.modules||[]).map(function(mod){
-    var questions = (mod.questions||[]).map(function(q){
-      var q2 = JSON.parse(JSON.stringify(q));
-      if(q.type==='tf'){
-        q2.answer = (q.correct==='Vero');
-      } else {
-        q2.answer = (q.opts||[]).indexOf(q.correct);
-        if(q2.answer < 0) q2.answer = 0;
-      }
-      return q2;
-    });
-    return Object.assign({}, mod, {questions: questions});
-  });
   var exportData = {
     code: l.code, title: l.title,
     dur: l.dur, timer: l.qsec||20,
-    desc: l.desc||'', modules: modulesWithAnswer
+    desc: l.desc||'', modules: l.modules
   };
   localStorage.setItem('ua_edit_lesson', JSON.stringify(exportData));
   localStorage.setItem('ua_edit_lesson_id', l.id);
@@ -2449,4 +2432,70 @@ function renderPercorsoVenditori(){
       +'<div><div style="font-weight:600;color:var(--tx)">'+esc(v.name)+'</div>'
       +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div></div>'
       +'<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">'
-      +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" title="'+(isHid?'Ripristina':'Nascondi')+'" style="background:none;border:none;
+      +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" title="'+(isHid?'Ripristina':'Nascondi')+'" style="background:none;border:none;cursor:pointer;color:var(--mu);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-'+(isHid?'eye':'eye-off')+'"></i></button>'
+      +'<button data-name="'+safeName+'" data-store="'+safeStore+'" onclick="deleteVendorResults(this.dataset.name,this.dataset.store)" title="Elimina tutti i risultati" style="background:none;border:none;cursor:pointer;color:var(--dng);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-trash"></i></button>'
+      +'</div>'
+      +'</div>'
+      +'</td>';
+    html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)">'
+      +'<span style="font-weight:700;color:'+summColor+'">'+v.done+'/'+totalL+'</span></td>';
+    allLessons.forEach(function(l){
+      var pct = matrix[v.key][l.code];
+      var cell, bgCell;
+      if(pct===null){
+        cell = '<span title="Non ancora svolta" style="font-size:16px;color:var(--br)">&#9675;</span>';
+        bgCell = bg;
+      } else if(pct>=70){
+        cell = '<span title="'+pct+'% - superata" style="font-size:13px;font-weight:700;color:var(--ac)">'+pct+'%</span>';
+        bgCell = 'rgba(29,158,117,.08)';
+      } else {
+        cell = '<span title="'+pct+'% - sotto soglia" style="font-size:13px;font-weight:700;color:var(--dng)">'+pct+'%</span>';
+        bgCell = 'rgba(226,75,74,.06)';
+      }
+      html += '<td style="padding:6px 2px;text-align:center;background:'+bgCell+'">'+cell+'</td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  html += '<div style="padding:.625rem 1rem;border-top:1px solid var(--br);display:flex;gap:1.25rem;flex-wrap:wrap">';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (&ge;70%)</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
+    +'<span style="color:var(--br);font-size:16px">&#9675;</span> Non ancora svolta</span>';
+  html += '</div>';
+  html += '</div>';
+
+  html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center">'
+    +'<i class="ti ti-info-circle"></i> Mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
+
+  el.innerHTML = html;
+}
+
+function toggleHideVendor(key){
+  if(_hiddenVendors[key]) delete _hiddenVendors[key];
+  else _hiddenVendors[key] = true;
+  localStorage.setItem('ua_hidden_vendors', JSON.stringify(_hiddenVendors));
+  renderPercorsoVenditori();
+}
+function toggleShowHiddenVendors(){
+  _showHiddenVendors = !_showHiddenVendors;
+  renderPercorsoVenditori();
+}
+
+function scrollToStoreRow(name){
+  var row = document.getElementById('sr-'+name);
+  if(row) row.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function statCard(val,lbl,color){
+  return '<div style="text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:.625rem .5rem">'
+    +'<div style="font-size:16px;font-weight:700;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+lbl+'</div>'
+    +'</div>';
+}
+</script>
+</body>
+</html>
