@@ -780,7 +780,8 @@ async function loadActiveLesson(){
 
 async function setActiveLesson(code){
   showLoad('Impostazione lezione del giorno...');
-  var {error}=await sb.from('settings').upsert({key:'active_lesson',value:code},{onConflict:'key'});
+  await sb.from('settings').delete().eq('key','active_lesson');
+  var {error}=await sb.from('settings').insert({key:'active_lesson',value:code});
   hideLoad();
   if(error){alert('Errore: '+error.message);return;}
   activeLesson=code;
@@ -790,7 +791,7 @@ async function setActiveLesson(code){
 
 async function clearActiveLesson(){
   showLoad('Rimozione lezione del giorno...');
-  var {error}=await sb.from('settings').upsert({key:'active_lesson',value:''},{onConflict:'key'});
+  var {error}=await sb.from('settings').delete().eq('key','active_lesson');
   hideLoad();
   if(error){alert('Errore: '+error.message);return;}
   activeLesson='';
