@@ -144,7 +144,7 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 @media(max-width:600px){.app{padding:.75rem}.tabs{flex-wrap:wrap}.tab{flex:none;width:calc(50% - 2px)}.rmg{grid-template-columns:1fr 1fr}.img-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr))}}
 </style>
 </head>
-<body>
+<body onload="goLogin()">
 
 <!-- LOADING OVERLAY -->
 <div id="loading-overlay" style="display:none">
@@ -772,9 +772,9 @@ function addDemoLesson(){
 // ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
 async function loadActiveLesson(){
   try{
-    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
+    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').order('id',{ascending:false}).limit(1);
     if(error){console.warn('loadActiveLesson:',error.message);activeLesson='';return;}
-    activeLesson=data&&data.value?data.value:'';
+    activeLesson=(data&&data.length>0&&data[0].value)?data[0].value:'';
   }catch(e){console.warn('loadActiveLesson exception:',e);activeLesson='';}
 }
 
