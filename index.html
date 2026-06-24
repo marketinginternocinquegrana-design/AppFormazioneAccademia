@@ -2497,21 +2497,92 @@ function scrollToStoreRow(name){
 }
 
 function statCard(val,lbl,color){
-  return '<div style="text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:.625rem .5rem">'
-    +'<div style="font-size:16px;font-weight:700;color:'+color+'">'+val+'</div>'
-    +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+lbl+'</div>'
-    +'</div>';
+  return '<div class="metric"><div class="mv" style="color:'+(color||'var(--ac)')+'">'+val+'</div><div class="ml">'+lbl+'</div></div>';
 }
 
-// ─── STARTUP ──────────────────────────────────────────────────────────────────
-window.addEventListener('DOMContentLoaded', async function(){
-  await loadStores();
-  await loadLessons();
-  await loadActiveLesson();
-  populateSel();
-  renderLoginLessons();
-  initLoginName();
-});
+// ─── PDF EXPORT ───────────────────────────────────────────────────────────────
+function _buildResultPDF(r){
+  var doc=new window.jspdf.jsPDF();
+  var pw=doc.internal.pageSize.getWidth();
+  var y=20;
+  doc.setFontSize(18);doc.setFont(undefined,'bold');
+  doc.text('Unlimited Accademy',pw/2,y,{align:'center'});y+=8;
+  doc.setFontSize(12);doc.setFont(undefined,'normal');
+  doc.text('Report sessione',pw/2,y,{align:'center'});y+=10;
+  doc.setLineWidth(0.5);doc.line(14,y,pw-14,y);y+=8;
+  doc.setFontSize(13);doc.setFont(undefined,'bold');
+  doc.text(String(r.user||''),14,y);y+=6;
+  doc.setFont(undefined,'normal');doc.setFontSize(10);
+  doc.text('Store: '+String(r.store||''),14,y);y+=5;
+  doc.text('Lezione: '+String(r.lesson||'')+' ('+String(r.code||'')+')',14,y);y+=5;
+  doc.text('Data: '+String(r.date||''),14,y);y+=5;
+  doc.text('Durata: '+String(r.timeStr||''),14,y);y+=8;
+  doc.setFontSize(14);doc.setFont(undefined,'bold');
+  doc.text('Punteggio: '+r.pct+'%  ('+r.ok+'/'+r.tot+' corrette)',14,y);y+=6;
+  if(r.to){doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text('Timeout: '+r.to,14,y);y+=5;}
+  y+=4;doc.setLineWidth(0.3);doc.line(14,y,pw-14,y);y+=7;
+  if(r.answers&&r.answers.length){
+    doc.setFontSize(11);doc.setFont(undefined,'bold');
+    doc.text('Dettaglio risposte',14,y);y+=7;
+    r.answers.forEach(function(a){
+      if(y>270){doc.addPage();y=20;}
+      var ic=a.timedOut?'[T]':(a.correct?'[OK]':'[X]');
+      doc.setFontSize(9);doc.setFont(undefined,'normal');
+      var lines=doc.splitTextToSize(ic+' '+String(a.qText||''),pw-28);
+      doc.text(lines,14,y);y+=lines.length*5;
+      if(!a.correct&&!a.timedOut&&a.correctAns){
+        doc.setTextColor(120,120,120);
+        doc.text('   Corretta: '+String(a.correctAns),14,y);
+        doc.setTextColor(0,0,0);y+=5;
+      }
+    });
+  }
+  return doc;
+}
+
+function exportMyPDF(){
+  var r=S.lastResult;
+  if(!r){alert('Nessun risultato disponibile.');return;}
+  try{
+    var doc=_buildResultPDF(r);
+    doc.save('risultato_'+(r.user||'utente').replace(/\s+/g,'_')+'_'+(r.code||'')+'.pdf');
+  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+}
+
+function exportOnePDF(i){
+  var r=results[i];
+  if(!r){alert('Risultato non trovato.');return;}
+  try{
+    var doc=_buildResultPDF(r);
+    doc.save('risultato_'+(r.user||'utente').replace(/\s+/g,'_')+'_'+(r.code||'')+'.pdf');
+  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+}
+
+function exportAllPDF(){
+  if(!results||!results.length){alert('Nessun risultato disponibile.');return;}
+  try{
+    var doc=new window.jspdf.jsPDF();
+    var pw=doc.internal.pageSize.getWidth();
+    var y=20;
+    doc.setFontSize(18);doc.setFont(undefined,'bold');
+    doc.text('Unlimited Accademy',pw/2,y,{align:'center'});y+=8;
+    doc.setFontSize(12);doc.setFont(undefined,'normal');
+    doc.text('Export completo risultati ('+results.length+')',pw/2,y,{align:'center'});y+=10;
+    doc.setLineWidth(0.5);doc.line(14,y,pw-14,y);y+=8;
+    results.forEach(function(r,idx){
+      if(y>255){doc.addPage();y=20;}
+      doc.setFontSize(11);doc.setFont(undefined,'bold');
+      doc.text((idx+1)+'. '+String(r.user||'')+' · '+String(r.store||''),14,y);y+=5;
+      doc.setFont(undefined,'normal');doc.setFontSize(9);
+      var l1=doc.splitTextToSize(String(r.lesson||'')+' ('+String(r.code||'')+')',pw-28);
+      doc.text(l1,14,y);y+=l1.length*4+1;
+      doc.text('Punteggio: '+r.pct+'%  '+r.ok+'/'+r.tot+' · '+String(r.timeStr||''),14,y);y+=4;
+      doc.text('Data: '+String(r.date||''),14,y);y+=7;
+    });
+    doc.save('risultati_unlimited_accademy.pdf');
+  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+}
+
 </script>
 </body>
 </html>
