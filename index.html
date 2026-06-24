@@ -772,9 +772,9 @@ function addDemoLesson(){
 // ─── SUPABASE: ACTIVE LESSON ─────────────────────────────────────────────────
 async function loadActiveLesson(){
   try{
-    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').single();
+    var {data,error}=await sb.from('settings').select('value').eq('key','active_lesson').order('id',{ascending:false}).limit(1);
     if(error){console.warn('loadActiveLesson:',error.message);activeLesson='';return;}
-    activeLesson=data&&data.value?data.value:'';
+    activeLesson=(data&&data.length>0&&data[0].value)?data[0].value:'';
   }catch(e){console.warn('loadActiveLesson exception:',e);activeLesson='';}
 }
 
