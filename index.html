@@ -1023,7 +1023,7 @@ function showConfirm(msg,cb,title){
   document.getElementById('modal-confirm-title').textContent=title||'Conferma eliminazione';
   document.getElementById('modal-confirm-msg').textContent=msg;
   _confirmCallback=cb;
-  document.getElementById('modal-confirm-ok').onclick=function(){ closeConfirmModal(); if(_confirmCallback) _confirmCallback(); };
+  document.getElementById('modal-confirm-ok').onclick=function(){ var cb=_confirmCallback; closeConfirmModal(); if(cb) cb(); };
   document.getElementById('modal-confirm').style.display='flex';
 }
 function closeConfirmModal(){
