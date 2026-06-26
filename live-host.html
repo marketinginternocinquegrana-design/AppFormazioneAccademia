@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LIVE Host Dashboard — Unlimited Accademy</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8e6df;min-height:100vh}
+:root{
+  --ac:#C9A84C;--ac-l:rgba(201,168,76,0.15);--ac-d:#a07830;
+  --dng:#E24B4A;--dng-l:rgba(226,75,74,0.15);
+  --wrn:#d4921a;--wrn-l:rgba(212,146,26,0.15);
+  --info:#4a9fd4;--info-l:rgba(74,159,212,0.15);
+  --cb:#1e2025;--br:rgba(255,255,255,0.09);--tx:#e8e6df;--mu:#8a8780;--sf:#16181c;
+  --suc:#4caf7d;
+}
+.app{max-width:1200px;margin:0 auto;padding:1.25rem}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:1px solid var(--br);background:transparent;color:var(--tx);transition:all .15s;font-family:inherit}
+.btn:hover{background:var(--sf)}
+.btn.pr{background:var(--ac);color:#111;border-color:var(--ac);font-weight:700}
+.btn.pr:hover{background:var(--ac-d)}
+.btn.dn{background:var(--dng);color:#fff;border-color:var(--dng)}
+.btn.dn:hover{opacity:.85}
+.btn.lg{padding:14px 28px;font-size:16px}
+.btn:disabled{opacity:.4;cursor:default}
+.card{background:var(--cb);border:1px solid var(--br);border-radius:14px;padding:1.5rem;margin-bottom:1rem}
+.live-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#fff;background:var(--dng);padding:4px 12px;border-radius:99px}
+.live-badge::before{content:'';width:8px;height:8px;border-radius:50%;background:#fff;animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.spinner{width:40px;height:40px;border:3px solid var(--ac-l);border-top-color:var(--ac);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.metric-big{text-align:center;padding:1.25rem;background:var(--sf);border-radius:10px}
+.metric-big .val{font-size:48px;font-weight:800;line-height:1}
+.metric-big .lbl{font-size:12px;color:var(--mu);margin-top:6px}
+.rank-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;background:var(--cb);border:1px solid var(--br);margin-bottom:6px;transition:background .2s}
+.rank-row.rank-1{border-color:var(--ac);background:rgba(201,168,76,.1)}
+.rank-row.rank-2{border-color:#aaa;background:rgba(170,170,170,.06)}
+.rank-row.rank-3{border-color:#cd7f32;background:rgba(205,127,50,.06)}
+.rank-pos{width:36px;text-align:center;font-size:20px;font-weight:800}
+.rank-name{flex:1;font-weight:600;font-size:15px}
+.rank-store{font-size:12px;color:var(--mu)}
+.rank-pts{font-size:24px;font-weight:800;color:var(--ac)}
+.opt-preview{padding:10px 16px;border:2px solid var(--br);border-radius:9px;margin-bottom:8px;display:flex;align-items:center;gap:12px;font-size:15px;background:var(--sf)}
+.opt-preview.correct{border-color:var(--suc);background:rgba(76,175,125,.12)}
+.opt-ltr{width:30px;height:30px;border-radius:50%;background:var(--cb);border:1px solid var(--br);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.opt-preview.correct .opt-ltr{background:var(--suc);color:#fff;border-color:var(--suc)}
+.screen{display:none}.screen.active{display:block}
+.topbar{display:flex;align-items:center;justify-content:space-between;background:var(--cb);border:1px solid var(--br);border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
+.timer-ring{position:relative;width:80px;height:80px;flex-shrink:0}
+.timer-ring svg{transform:rotate(-90deg)}
+.tr-bg{fill:none;stroke:#2a2d33;stroke-width:7}
+.tr-fill{fill:none;stroke:var(--dng);stroke-width:7;stroke-linecap:round;stroke-dasharray:188;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear,stroke .3s}
+.tr-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
+@media(max-width:700px){.grid-3{grid-template-columns:1fr 1fr}.app{padding:.75rem}}
+</style>
+</head>
+<body>
+
+<div id="loading-screen" class="screen active" style="min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+  <div class="spinner"></div>
+  <p style="color:var(--mu);font-size:14px" id="loading-msg">Connessione a Supabase...</p>
+</div>
+
+<div id="no-live-screen" class="screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div style="text-align:center;padding:2rem">
+    <div style="font-size:52px;margin-bottom:1rem">&#128268;</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:.5rem">Nessuna LIVE attiva</div>
+    <div style="font-size:14px;color:var(--mu);margin-bottom:1.5rem">Attiva una sessione dal pannello formatore, poi ricarica questa pagina.</div>
+    <button class="btn pr" onclick="location.reload()"><i class="ti ti-refresh"></i> Ricarica</button>
+  </div>
+</div>
+
+<div id="main-screen" class="screen">
+  <div class="app">
+    <!-- TOP BAR -->
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span class="live-badge">LIVE</span>
+        <div>
+          <div style="font-weight:700;font-size:18px" id="host-session-title">—</div>
+          <div style="font-size:13px;color:var(--mu)" id="host-session-status">Caricamento...</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn sm" id="btn-prev" onclick="prevQuestion()" style="display:none"><i class="ti ti-chevron-left"></i> Indietro</button>
+        <button class="btn pr lg" id="btn-start" onclick="startFirstQuestion()" style="display:none"><i class="ti ti-player-play"></i> Avvia prima domanda</button>
+        <button class="btn pr" id="btn-next" onclick="nextQuestion()" style="display:none"><i class="ti ti-chevron-right"></i> Prossima domanda</button>
+        <button class="btn dn" id="btn-end" onclick="endLive()" style="display:none"><i class="ti ti-player-stop"></i> Termina LIVE</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem">
+
+      <!-- LEFT: question + stats -->
+      <div>
+        <!-- Question area -->
+        <div class="card" id="question-area">
+          <div style="text-align:center;padding:2rem;color:var(--mu)">
+            <div class="spinner" style="margin-bottom:1rem"></div>
+            <div>In attesa dell&#39;avvio...</div>
+          </div>
+        </div>
+        <!-- Response stats -->
+        <div class="grid-3">
+          <div class="metric-big">
+            <div class="val" id="stat-answered" style="color:var(--ac)">0</div>
+            <div class="lbl">Risposte ricevute</div>
+          </div>
+          <div class="metric-big">
+            <div class="val" id="stat-correct" style="color:var(--suc)">0</div>
+            <div class="lbl">Corrette</div>
+          </div>
+          <div class="metric-big">
+            <div class="val" id="stat-pct" style="color:var(--info)">—</div>
+            <div class="lbl">% esatte</div>
+          </div>
+        </div>
+        <!-- Riepilogo risposte (bar chart per opzione) -->
+        <div class="card" id="answer-dist" style="display:none">
+          <div style="font-size:13px;font-weight:600;color:var(--mu);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Distribuzione risposte</div>
+          <div id="answer-dist-body"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT: leaderboard -->
+      <div>
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+            <div style="font-size:14px;font-weight:700">&#127942; Classifica</div>
+            <div style="font-size:12px;color:var(--mu)" id="rank-update-time"></div>
+          </div>
+          <div id="host-leaderboard"><div style="color:var(--mu);font-size:13px">Nessun punteggio ancora.</div></div>
+        </div>
+        <!-- Progress -->
+        <div class="card">
+          <div style="font-size:13px;font-weight:600;color:var(--mu);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Avanzamento</div>
+          <div id="q-progress" style="color:var(--mu);font-size:13px">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var SUPA_URL = 'https://pvceaejclrbgbxiuacwq.supabase.co';
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB2Y2VhZWpjbHJiZ2J4aXVhY3dxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4MDQwNjcsImV4cCI6MjA5NTM4MDA2N30.DgqFPHQUUObnfnNVl4_vz2ixICr--Rm9WwxABdIu7vw';
+var sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+var H = {
+  session: null,
+  questions: [],
+  pollInterval: null,
+  timerInterval: null,
+  timeLeft: 0
+};
+
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function show(id){
+  document.querySelectorAll('.screen').forEach(function(s){ s.classList.remove('active'); s.style.display='none'; });
+  var el = document.getElementById(id);
+  if(el){ el.classList.add('active'); el.style.display='block'; }
+}
+
+async function init(){
+  document.getElementById('loading-msg').textContent = 'Ricerca sessione attiva...';
+  try {
+    var res = await sb.from('live_sessions').select('*').eq('status','active').order('created_at',{ascending:false}).limit(1);
+    if(res.error || !res.data || !res.data.length){
+      show('no-live-screen'); return;
+    }
+    H.session = res.data[0];
+    var qRes = await sb.from('live_questions').select('*').eq('session_id',H.session.id).order('order_index');
+    H.questions = qRes.data || [];
+    show('main-screen');
+    renderSession();
+    startPoll();
+  } catch(e){
+    document.getElementById('loading-msg').textContent = 'Errore di connessione: '+e.message;
+  }
+}
+
+function renderSession(){
+  var s = H.session;
+  var qIdx = s.current_question_index;
+  var totalQ = H.questions.length;
+  document.getElementById('host-session-title').textContent = s.title;
+  // Buttons
+  var btnStart = document.getElementById('btn-start');
+  var btnNext = document.getElementById('btn-next');
+  var btnEnd = document.getElementById('btn-end');
+  var btnPrev = document.getElementById('btn-prev');
+  btnStart.style.display = 'none';
+  btnNext.style.display = 'none';
+  btnEnd.style.display = 'none';
+  btnPrev.style.display = 'none';
+  if(qIdx < 0){
+    document.getElementById('host-session-status').textContent = 'Pronta · '+totalQ+' domande';
+    btnStart.style.display = 'inline-flex';
+    renderQuestionWaiting();
+  } else {
+    document.getElementById('host-session-status').textContent = 'Domanda '+(qIdx+1)+' di '+totalQ;
+    if(qIdx < totalQ-1) btnNext.style.display = 'inline-flex';
+    btnEnd.style.display = 'inline-flex';
+    renderCurrentQuestion();
+    refreshStats();
+    refreshLeaderboard();
+  }
+  document.getElementById('q-progress').innerHTML = totalQ ?
+    '<div style="display:flex;gap:4px;flex-wrap:wrap">'
+    +H.questions.map(function(q,i){
+      var done = i < qIdx || (i===qIdx && qIdx>=0);
+      var active = i===qIdx && qIdx>=0;
+      return '<div style="width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;background:'
+        +(active?'var(--ac)':done?'var(--sf)':'#2a2d33')
+        +';color:'+(active?'#111':'var(--mu)')
+        +';border:1px solid '+(active?'var(--ac)':'var(--br)')+'">'+( i+1)+'</div>';
+    }).join('')
+    +'</div>' : '—';
+}
+
+function renderQuestionWaiting(){
+  document.getElementById('question-area').innerHTML =
+    '<div style="text-align:center;padding:3rem 1rem">'
+    +'<div style="font-size:52px;margin-bottom:1rem">&#9889;</div>'
+    +'<div style="font-size:20px;font-weight:700;color:var(--ac)">Sessione pronta</div>'
+    +'<div style="font-size:14px;color:var(--mu);margin-top:.75rem">Gli studenti stanno aspettando. Clicca <strong>Avvia prima domanda</strong> per iniziare.</div>'
+    +'</div>';
+}
+
+function renderCurrentQuestion(){
+  var qIdx = H.session.current_question_index;
+  var q = H.questions[qIdx];
+  if(!q) return;
+  var opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options||'[]');
+  var elapsed = H.session.question_started_at ?
+    Math.max(0, (Date.now()-new Date(H.session.question_started_at).getTime())/1000) : 0;
+  var timeLeft = Math.max(0, q.time_limit - Math.floor(elapsed));
+  H.timeLeft = timeLeft;
+
+  var optsHtml = opts.map(function(o,i){
+    var ltr = String.fromCharCode(65+i);
+    var isCorrect = i===q.correct_index;
+    return '<div class="opt-preview'+(isCorrect?' correct':'')+'">'
+      +'<div class="opt-ltr">'+ltr+'</div>'
+      +'<div style="flex:1">'+esc(o)+'</div>'
+      +(isCorrect?'<i class="ti ti-check" style="color:var(--suc);font-size:16px"></i>':'')
+      +'</div>';
+  }).join('');
+
+  var timerPct = timeLeft/q.time_limit*100;
+  document.getElementById('question-area').innerHTML =
+    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:1.25rem">'
+    +'<div class="timer-ring">'
+    +'<svg viewBox="0 0 80 80" width="80" height="80">'
+    +'<circle class="tr-bg" cx="40" cy="40" r="30"/>'
+    +'<circle class="tr-fill" id="host-timer-ring" cx="40" cy="40" r="30" style="stroke-dashoffset:'+Math.round(188*(1-timerPct/100))+'"/>'
+    +'</svg>'
+    +'<div class="tr-num" id="host-timer-num">'+timeLeft+'</div>'
+    +'</div>'
+    +'<div style="flex:1">'
+    +'<div style="font-size:12px;color:var(--mu);margin-bottom:.4rem">Domanda '+(qIdx+1)+' di '+H.questions.length+'</div>'
+    +'<div style="font-size:20px;font-weight:700;line-height:1.4">'+esc(q.question_text)+'</div>'
+    +'</div>'
+    +'</div>'
+    +optsHtml;
+
+  clearInterval(H.timerInterval);
+  H.timerInterval = setInterval(function(){
+    H.timeLeft = Math.max(0, H.timeLeft-1);
+    var numEl = document.getElementById('host-timer-num');
+    var ringEl = document.getElementById('host-timer-ring');
+    if(numEl) numEl.textContent = H.timeLeft;
+    if(ringEl){
+      var pct = H.timeLeft/q.time_limit;
+      ringEl.style.strokeDashoffset = Math.round(188*(1-pct));
+      ringEl.style.stroke = H.timeLeft<=5?'var(--dng)':H.timeLeft<=10?'var(--wrn)':'var(--suc)';
+    }
+    if(H.timeLeft<=0) clearInterval(H.timerInterval);
+  }, 1000);
+}
+
+async function refreshStats(){
+  var qIdx = H.session.current_question_index;
+  if(qIdx<0) return;
+  var q = H.questions[qIdx];
+  if(!q) return;
+  var res = await sb.from('live_responses')
+    .select('answer_index,is_correct')
+    .eq('session_id',H.session.id)
+    .eq('question_id',q.id);
+  var data = res.data || [];
+  var answered = data.length;
+  var correct = data.filter(function(r){ return r.is_correct; }).length;
+  document.getElementById('stat-answered').textContent = answered;
+  document.getElementById('stat-correct').textContent = correct;
+  document.getElementById('stat-pct').textContent = answered ? Math.round(correct/answered*100)+'%' : '—';
+
+  // Distribution
+  if(answered>0){
+    var opts = Array.isArray(q.options)?q.options:JSON.parse(q.options||'[]');
+    var counts = new Array(opts.length).fill(0);
+    data.forEach(function(r){ if(r.answer_index>=0&&r.answer_index<opts.length) counts[r.answer_index]++; });
+    var distEl = document.getElementById('answer-dist');
+    var distBody = document.getElementById('answer-dist-body');
+    distEl.style.display='block';
+    distBody.innerHTML = counts.map(function(c,i){
+      var ltr = String.fromCharCode(65+i);
+      var pct = answered?Math.round(c/answered*100):0;
+      var isCorrect = i===q.correct_index;
+      return '<div style="margin-bottom:.625rem">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px">'
+        +'<span style="font-size:13px;font-weight:600;color:'+(isCorrect?'var(--suc)':'var(--tx)')+'">'+ltr+'. '+esc(opts[i])+'</span>'
+        +'<span style="font-size:13px;font-weight:700;color:'+(isCorrect?'var(--suc)':'var(--mu)')+'">'+c+' ('+pct+'%)</span>'
+        +'</div>'
+        +'<div style="height:8px;background:#2a2d33;border-radius:99px;overflow:hidden">'
+        +'<div style="height:100%;width:'+pct+'%;background:'+(isCorrect?'var(--suc)':'var(--info)')+';border-radius:99px;transition:width .4s"></div>'
+        +'</div>'
+        +'</div>';
+    }).join('');
+  }
+}
+
+async function refreshLeaderboard(){
+  var res = await sb.from('live_responses')
+    .select('user_name,store,points')
+    .eq('session_id',H.session.id);
+  var data = res.data || [];
+  var byUser = {};
+  data.forEach(function(r){
+    var k = r.user_name;
+    if(!byUser[k]) byUser[k]={name:r.user_name, store:r.store||'', total:0};
+    byUser[k].total += r.points;
+  });
+  var ranked = Object.values(byUser).sort(function(a,b){ return b.total-a.total; });
+  document.getElementById('rank-update-time').textContent = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(!ranked.length){
+    document.getElementById('host-leaderboard').innerHTML='<div style="color:var(--mu);font-size:13px">Nessun punteggio ancora.</div>';
+    return;
+  }
+  document.getElementById('host-leaderboard').innerHTML = ranked.slice(0,10).map(function(u,i){
+    var medal = i===0?'&#129351;':i===1?'&#129352;':i===2?'&#129353;':'';
+    return '<div class="rank-row rank-'+(i+1)+'">'
+      +'<div class="rank-pos">'+(medal||(i+1)+'.')+'</div>'
+      +'<div><div class="rank-name">'+esc(u.name)+'</div><div class="rank-store">'+esc(u.store)+'</div></div>'
+      +'<div class="rank-pts">'+u.total+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function startPoll(){
+  if(H.pollInterval) clearInterval(H.pollInterval);
+  H.pollInterval = setInterval(pollSession, 3000);
+}
+
+async function pollSession(){
+  try {
+    var res = await sb.from('live_sessions').select('*').eq('id',H.session.id).single();
+    if(res.error||!res.data) return;
+    var newData = res.data;
+    var changed = newData.current_question_index !== H.session.current_question_index;
+    H.session = newData;
+    if(newData.status==='ended'){ clearInterval(H.pollInterval); show('no-live-screen'); return; }
+    if(changed) renderSession();
+    if(newData.current_question_index>=0){ refreshStats(); refreshLeaderboard(); }
+  } catch(e){}
+}
+
+async function startFirstQuestion(){
+  await setQuestion(0);
+}
+
+async function nextQuestion(){
+  var next = H.session.current_question_index + 1;
+  if(next >= H.questions.length) return;
+  await setQuestion(next);
+}
+
+async function setQuestion(idx){
+  clearInterval(H.timerInterval);
+  var res = await sb.from('live_sessions').update({
+    current_question_index: idx,
+    question_started_at: new Date().toISOString()
+  }).eq('id',H.session.id).select().single();
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  H.session = res.data;
+  document.getElementById('answer-dist').style.display='none';
+  renderSession();
+}
+
+async function endLive(){
+  if(!confirm('Terminare la LIVE? Gli studenti vedranno la classifica finale.')) return;
+  clearInterval(H.pollInterval);
+  clearInterval(H.timerInterval);
+  await refreshLeaderboard();
+  var res = await sb.from('live_sessions').update({status:'ended'}).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  show('no-live-screen');
+  document.getElementById('no-live-screen').querySelector('div div:first-child').textContent = '&#127942;';
+  document.getElementById('no-live-screen').querySelector('div div:nth-child(2)').textContent = 'LIVE terminata!';
+  document.getElementById('no-live-screen').querySelector('div div:nth-child(3)').textContent = 'La classifica finale &#232; visibile agli studenti.';
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
