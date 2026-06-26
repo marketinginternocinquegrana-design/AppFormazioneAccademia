@@ -246,12 +246,19 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
       <div id="emp-err" style="display:none;color:var(--dng);font-size:13px;margin-bottom:.5rem;padding:6px 10px;background:var(--dng-l);border-radius:6px;border:1px solid var(--dng)"></div>
       <input type="hidden" id="ln">
       <select id="ls" style="display:none"></select>
-      <div class="field">
+      <div id="live-login-banner" style="display:none;background:rgba(226,75,74,0.12);border:1px solid var(--dng);border-radius:9px;padding:12px 14px;margin-bottom:1rem;text-align:center">
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:4px">
+          <span class="live-badge">LIVE</span>
+          <strong style="font-size:15px">Sessione in diretta attiva!</strong>
+        </div>
+        <div style="font-size:13px;color:var(--mu)">Inserisci il codice dipendente e clicca <strong>Entra alla LIVE</strong></div>
+      </div>
+      <div id="live-lesson-field" class="field">
         <label>Codice lezione</label>
         <input type="text" id="lc" placeholder="es. ARR-001" style="text-transform:uppercase" autocomplete="off" oninput="this.value=this.value.toUpperCase()">
       </div>
       <div id="lerr" style="color:var(--dng);font-size:13px;display:none;margin-bottom:.875rem;padding:8px 12px;background:var(--dng-l);border-radius:7px;border:1px solid var(--dng)"></div>
-      <button class="btn pr wf" onclick="doLogin()"><i class="ti ti-arrow-right"></i> Inizia lezione</button>
+      <button class="btn pr wf" id="login-btn" onclick="doLogin()"><i class="ti ti-arrow-right"></i> Inizia lezione</button>
     </div>
 
     <div id="login-lessons-box" style="display:none" class="card">
@@ -387,6 +394,26 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
 
   <!-- LIVE TAB -->
   <div id="ap-live" style="display:none">
+    <!-- LIVE MANAGER -->
+    <div class="card" id="live-manager-card">
+      <div class="ch"><i class="ti ti-bolt" style="color:var(--dng)"></i><h2>LIVE Manager</h2></div>
+      <div id="live-manager-body"><div class="mu sm-tx">Caricamento...</div></div>
+      <div id="live-create-form" style="display:none;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--br)">
+        <div style="font-size:13px;font-weight:600;margin-bottom:.75rem">Crea nuova sessione LIVE</div>
+        <div class="field">
+          <label>Titolo sessione</label>
+          <input type="text" id="live-form-title" placeholder="es. Quiz Tecniche di Vendita &mdash; Giugno 2026">
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem">Domande <span style="font-weight:400;color:var(--mu)">(seleziona il cerchio per segnare la risposta corretta)</span></div>
+        <div id="live-form-questions"></div>
+        <button class="btn sm" onclick="addLiveQuestion()" style="width:100%;margin-bottom:1rem;border-style:dashed"><i class="ti ti-plus"></i> Aggiungi domanda</button>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button class="btn sm" onclick="cancelLiveForm()">Annulla</button>
+          <button class="btn sm pr" onclick="saveLiveSession()"><i class="ti ti-check"></i> Salva sessione</button>
+        </div>
+      </div>
+    </div>
+    <!-- MONITOR IN DIRETTA -->
     <div class="card">
       <div class="ch">
         <i class="ti ti-radio"></i>
@@ -1021,6 +1048,7 @@ async function goLogin(){
   renderLoginLessons();
   show('login');
   initLoginName();
+  checkAndShowLiveBanner();
 }
 
 async function goAdmin(){
@@ -1049,7 +1077,7 @@ function aTab(t){
     document.getElementById('ap-'+x).style.display=x===t?'block':'none';
     document.getElementById('tab-'+x).classList.toggle('active',x===t);
   });
-  if(t==='live') renderLive();
+  if(t==='live'){ renderLive(); loadLiveSessions(); }
   if(t==='rank'){ renderRankFilter(); renderRank(); }
   if(t==='storico'){ renderStoricoFilters(); renderStorico(); }
   if(t==='employees'){ loadEmployees(); }
@@ -1742,6 +1770,18 @@ async function doLogin(){
     document.getElementById('ec').focus();
     return;
   }
+
+  // Check for active LIVE session — priority over lessons
+  var activeLive = await checkActiveLiveSession();
+  if(activeLive){
+    saveNameToStorage(name);
+    saveStoreToStorage(store);
+    err.style.display='none';
+    S.user={name:name,store:store};
+    enterLiveMode(activeLive);
+    return;
+  }
+
   if(!code){err.textContent='Inserisci il codice lezione.';err.style.display='block';return;}
 
   var lesson=lessons[code];
@@ -2552,18 +2592,14 @@ function renderPercorsoVenditori(){
   html += '<table style="border-collapse:collapse;font-size:14px;min-width:100%">';
 
   html += '<thead><tr style="background:var(--sf)">';
-  html += '<th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--tx);white-space:nowrap;'
-    +'position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:180px">Venditore</th>';
-  html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:12px;white-space:nowrap;border-right:1px solid var(--br)">'
-    +'<div>Completate</div><div style="font-size:11px;font-weight:400">/ '+totalL+'</div></th>';
+  html += '<th style="padding:8px 12px;text-align:left;font-weight:700;color:var(--tx);white-space:nowrap;position:sticky;left:0;background:var(--sf);z-index:2;border-right:2px solid var(--br);min-width:180px">Venditore</th>';
+  html += '<th style="padding:8px;text-align:center;font-weight:600;color:var(--mu);font-size:12px;white-space:nowrap;border-right:1px solid var(--br)"><div>Completate</div><div style="font-size:11px;font-weight:400">/ '+totalL+'</div></th>';
   allLessons.forEach(function(l){
     html += '<th style="padding:4px 2px;text-align:center;min-width:52px;max-width:52px;vertical-align:bottom" title="'+esc(l.title)+' ('+esc(l.code)+')">'
-      +'<div style="writing-mode:vertical-lr;transform:rotate(180deg);height:110px;font-size:13px;font-weight:600;'
-      +'color:var(--mu);overflow:hidden;text-overflow:ellipsis;padding:0 2px;white-space:nowrap">'+esc(l.title.length>12?l.title.substring(0,12)+'...':l.title)+'</div>'
+      +'<div style="writing-mode:vertical-lr;transform:rotate(180deg);height:110px;font-size:13px;font-weight:600;color:var(--mu);overflow:hidden;text-overflow:ellipsis;padding:0 2px;white-space:nowrap">'+esc(l.title.length>12?l.title.substring(0,12)+'...':l.title)+'</div>'
       +'</th>';
   });
   html += '</tr></thead>';
-
   html += '<tbody>';
   vendStats.forEach(function(v, i){
     var bg = i%2===0?'var(--cb)':'var(--sf)';
@@ -2579,12 +2615,9 @@ function renderPercorsoVenditori(){
       +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+esc(v.store)+'</div></div>'
       +'<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0">'
       +'<button data-vkey="'+safeKey+'" onclick="toggleHideVendor(this.dataset.vkey)" title="'+(isHid?'Ripristina':'Nascondi')+'" style="background:none;border:none;cursor:pointer;color:var(--mu);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-'+(isHid?'eye':'eye-off')+'"></i></button>'
-      +'<button data-name="'+safeName+'" data-store="'+safeStore+'" onclick="deleteVendorResults(this.dataset.name,this.dataset.store)" title="Elimina tutti i risultati" style="background:none;border:none;cursor:pointer;color:var(--dng);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-trash"></i></button>'
-      +'</div>'
-      +'</div>'
-      +'</td>';
-    html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)">'
-      +'<span style="font-weight:700;color:'+summColor+'">'+v.done+'/'+totalL+'</span></td>';
+      +'<button data-name="'+safeName+'" data-store="'+safeStore+'" onclick="deleteVendorResults(this.dataset.name,this.dataset.store)" title="Elimina risultati" style="background:none;border:none;cursor:pointer;color:var(--mu);padding:1px 4px;font-size:13px;opacity:.35" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.35"><i class="ti ti-trash"></i></button>'
+      +'</div></div></td>';
+    html += '<td style="padding:6px 8px;text-align:center;background:'+bg+';border-right:1px solid var(--br)"><span style="font-weight:700;color:'+summColor+'">'+v.done+'/'+totalL+'</span></td>';
     allLessons.forEach(function(l){
       var pct = matrix[v.key][l.code];
       var cell, bgCell;
@@ -2603,32 +2636,13 @@ function renderPercorsoVenditori(){
     html += '</tr>';
   });
   html += '</tbody></table></div>';
-
   html += '<div style="padding:.625rem 1rem;border-top:1px solid var(--br);display:flex;gap:1.25rem;flex-wrap:wrap">';
-  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (&ge;70%)</span>';
-  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
-  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px">'
-    +'<span style="color:var(--br);font-size:16px">&#9675;</span> Non ancora svolta</span>';
-  html += '</div>';
-  html += '</div>';
-
-  html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center">'
-    +'<i class="ti ti-info-circle"></i> Mostra il miglior risultato storico per ogni lezione, indipendentemente dal filtro data.</div>';
-
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px"><span style="background:rgba(29,158,117,.15);border-radius:4px;padding:1px 6px;color:var(--ac);font-weight:700;font-size:13px">85%</span> Superata (&ge;70%)</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px"><span style="background:rgba(226,75,74,.1);border-radius:4px;padding:1px 6px;color:var(--dng);font-weight:700;font-size:13px">45%</span> Svolta ma sotto soglia</span>';
+  html += '<span style="font-size:13px;color:var(--mu);display:flex;align-items:center;gap:5px"><span style="color:var(--br);font-size:16px">&#9675;</span> Non ancora svolta</span>';
+  html += '</div></div>';
+  html += '<div style="margin-top:.5rem;font-size:11px;color:var(--mu);text-align:center"><i class="ti ti-info-circle"></i> Mostra il miglior risultato storico per ogni lezione.</div>';
   el.innerHTML = html;
-}
-
-function toggleHideVendor(key){
-  if(_hiddenVendors[key]) delete _hiddenVendors[key];
-  else _hiddenVendors[key] = true;
-  localStorage.setItem('ua_hidden_vendors', JSON.stringify(_hiddenVendors));
-  renderPercorsoVenditori();
-}
-function toggleShowHiddenVendors(){
-  _showHiddenVendors = !_showHiddenVendors;
-  renderPercorsoVenditori();
 }
 
 function scrollToStoreRow(name){
@@ -2637,107 +2651,523 @@ function scrollToStoreRow(name){
 }
 
 function statCard(val,lbl,color){
-  return '<div class="metric"><div class="mv" style="color:'+(color||'var(--ac)')+'">'+val+'</div><div class="ml">'+lbl+'</div></div>';
+  return '<div style="text-align:center;background:var(--sf);border:1px solid var(--br);border-radius:8px;padding:.625rem .5rem">'
+    +'<div style="font-size:16px;font-weight:700;color:'+color+'">'+val+'</div>'
+    +'<div style="font-size:11px;color:var(--mu);margin-top:2px">'+lbl+'</div></div>';
 }
 
-// ─── PDF EXPORT ───────────────────────────────────────────────────────────────
-function _buildResultPDF(r){
-  var doc=new window.jspdf.jsPDF();
-  var pw=doc.internal.pageSize.getWidth();
-  var y=20;
-  doc.setFontSize(18);doc.setFont(undefined,'bold');
-  doc.text('Unlimited Accademy',pw/2,y,{align:'center'});y+=8;
-  doc.setFontSize(12);doc.setFont(undefined,'normal');
-  doc.text('Report sessione',pw/2,y,{align:'center'});y+=10;
-  doc.setLineWidth(0.5);doc.line(14,y,pw-14,y);y+=8;
-  doc.setFontSize(13);doc.setFont(undefined,'bold');
-  doc.text(String(r.user||''),14,y);y+=6;
-  doc.setFont(undefined,'normal');doc.setFontSize(10);
-  doc.text('Store: '+String(r.store||''),14,y);y+=5;
-  doc.text('Lezione: '+String(r.lesson||'')+' ('+String(r.code||'')+')',14,y);y+=5;
-  doc.text('Data: '+String(r.date||''),14,y);y+=5;
-  doc.text('Durata: '+String(r.timeStr||''),14,y);y+=8;
-  doc.setFontSize(14);doc.setFont(undefined,'bold');
-  doc.text('Punteggio: '+r.pct+'%  ('+r.ok+'/'+r.tot+' corrette)',14,y);y+=6;
-  if(r.to){doc.setFont(undefined,'normal');doc.setFontSize(10);doc.text('Timeout: '+r.to,14,y);y+=5;}
-  y+=4;doc.setLineWidth(0.3);doc.line(14,y,pw-14,y);y+=7;
+function toggleHideVendor(key){
+  if(_hiddenVendors[key]) delete _hiddenVendors[key];
+  else _hiddenVendors[key] = true;
+  localStorage.setItem('ua_hidden_vendors', JSON.stringify(_hiddenVendors));
+  renderPercorsoVenditori();
+}
+
+function toggleShowHiddenVendors(){
+  _showHiddenVendors = !_showHiddenVendors;
+  renderPercorsoVenditori();
+}
+
+// ─── PDF ─────────────────────────────────────────────────────────────────────
+function buildPDF(r){
+  var jsPDF=window.jspdf.jsPDF;
+  var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+  doc.setFillColor(201,168,76);doc.rect(0,0,pw,32,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(18);doc.setFont('helvetica','bold');
+  doc.text('Unlimited Accademy',14,13);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text('Risultato: '+r.lesson,14,21);
+  doc.text('Codice: '+r.code+' - '+r.date,14,28);
+  doc.setTextColor(30,30,30);var y=44;
+  var row=function(lbl,val,color){
+    doc.setFontSize(10);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);doc.text(lbl,14,y);
+    doc.setFont('helvetica','bold');if(color)doc.setTextColor.apply(doc,color);else doc.setTextColor(30,30,30);
+    doc.text(String(val),75,y);doc.setTextColor(30,30,30);y+=8;
+  };
+  row('Arredatore:',r.user);row('Store:',r.store);row('Tempo:',r.timeStr);
+  row('Punteggio:',r.pct+'%',r.pct>=70?[29,158,117]:[226,75,74]);
+  row('Corrette:',r.ok+' su '+r.tot);row('Timeout:',r.to);
   if(r.answers&&r.answers.length){
-    doc.setFontSize(11);doc.setFont(undefined,'bold');
-    doc.text('Dettaglio risposte',14,y);y+=7;
+    y+=4;doc.setDrawColor(220,220,220);doc.line(14,y,pw-14,y);y+=8;
+    doc.setFontSize(10);doc.setFont('helvetica','bold');doc.setTextColor(30,30,30);
+    doc.text('Dettaglio risposte',14,y);y+=8;
     r.answers.forEach(function(a){
-      if(y>270){doc.addPage();y=20;}
-      var ic=a.timedOut?'[T]':(a.correct?'[OK]':'[X]');
-      doc.setFontSize(9);doc.setFont(undefined,'normal');
-      var lines=doc.splitTextToSize(ic+' '+String(a.qText||''),pw-28);
-      doc.text(lines,14,y);y+=lines.length*5;
-      if(!a.correct&&!a.timedOut&&a.correctAns){
-        doc.setTextColor(120,120,120);
-        doc.text('   Corretta: '+String(a.correctAns),14,y);
-        doc.setTextColor(0,0,0);y+=5;
+      if(y>ph-20){doc.addPage();y=20;}
+      var ok=a.correct,to=a.timedOut;
+      doc.setFontSize(9);doc.setFont('helvetica','bold');
+      doc.setTextColor.apply(doc,to?[226,175,74]:ok?[29,158,117]:[226,75,74]);
+      doc.text(to?'[T]':ok?'[OK]':'[X]',14,y);
+      doc.setTextColor(30,30,30);doc.setFont('helvetica','normal');
+      var lines=doc.splitTextToSize(a.qText||'',pw-36);
+      doc.text(lines,26,y);y+=lines.length*5+2;
+      if(!ok&&!to&&a.correctAns){
+        doc.setTextColor(100,100,100);
+        var al=doc.splitTextToSize('Corretta: '+a.correctAns,pw-36);
+        doc.text(al,26,y);y+=al.length*5+2;
       }
     });
   }
-  return doc;
+  doc.save('UA-'+r.code+'-'+r.user+'.pdf');
+}
+function exportOnePDF(i){buildPDF(results[i]);}
+function exportAllPDF(){results.forEach(function(r){buildPDF(r);});}
+function exportMyPDF(){if(S.lastResult)buildPDF(S.lastResult);}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── LIVE FEATURE — STUDENT SIDE ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+var liveState = {
+  session: null,
+  questions: [],
+  currentQIndex: -1,
+  questionStartedAt: null,
+  answered: {},
+  myScore: 0,
+  pollInterval: null,
+  timerInterval: null,
+  timeLeft: 0
+};
+
+async function checkActiveLiveSession(){
+  try {
+    var res = await sb.from('live_sessions').select('*').eq('status','active').order('created_at',{ascending:false}).limit(1);
+    if(res.error || !res.data || !res.data.length) return null;
+    return res.data[0];
+  } catch(e){ return null; }
 }
 
-function exportMyPDF(){
-  var r=S.lastResult;
-  if(!r){alert('Nessun risultato disponibile.');return;}
-  try{
-    var doc=_buildResultPDF(r);
-    doc.save('risultato_'+(r.user||'utente').replace(/\s+/g,'_')+'_'+(r.code||'')+'.pdf');
-  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+async function checkAndShowLiveBanner(){
+  try {
+    var live = await checkActiveLiveSession();
+    var banner = document.getElementById('live-login-banner');
+    var lessonField = document.getElementById('live-lesson-field');
+    var loginBtn = document.getElementById('login-btn');
+    if(live){
+      if(banner) banner.style.display='block';
+      if(lessonField) lessonField.style.display='none';
+      if(loginBtn){ loginBtn.innerHTML='<i class="ti ti-bolt"></i> Entra alla LIVE'; loginBtn.style.background='var(--dng)'; loginBtn.style.borderColor='var(--dng)'; }
+    } else {
+      if(banner) banner.style.display='none';
+      if(lessonField) lessonField.style.display='';
+      if(loginBtn){ loginBtn.innerHTML='<i class="ti ti-arrow-right"></i> Inizia lezione'; loginBtn.style.background=''; loginBtn.style.borderColor=''; }
+    }
+  } catch(e){}
 }
 
-function exportOnePDF(i){
-  var r=results[i];
-  if(!r){alert('Risultato non trovato.');return;}
-  try{
-    var doc=_buildResultPDF(r);
-    doc.save('risultato_'+(r.user||'utente').replace(/\s+/g,'_')+'_'+(r.code||'')+'.pdf');
-  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+async function enterLiveMode(session){
+  liveState.session = session;
+  liveState.answered = {};
+  liveState.myScore = 0;
+  liveState.currentQIndex = -1;
+  var res = await sb.from('live_questions').select('*').eq('session_id',session.id).order('order_index');
+  liveState.questions = res.data || [];
+  document.getElementById('live-session-title').textContent = session.title;
+  document.getElementById('live-user-display').textContent = S.user.name + ' — ' + S.user.store;
+  show('live');
+  renderLiveWaiting();
+  startLivePoll();
 }
 
-function exportAllPDF(){
-  if(!results||!results.length){alert('Nessun risultato disponibile.');return;}
-  try{
-    var doc=new window.jspdf.jsPDF();
-    var pw=doc.internal.pageSize.getWidth();
-    var y=20;
-    doc.setFontSize(18);doc.setFont(undefined,'bold');
-    doc.text('Unlimited Accademy',pw/2,y,{align:'center'});y+=8;
-    doc.setFontSize(12);doc.setFont(undefined,'normal');
-    doc.text('Export completo risultati ('+results.length+')',pw/2,y,{align:'center'});y+=10;
-    doc.setLineWidth(0.5);doc.line(14,y,pw-14,y);y+=8;
-    results.forEach(function(r,idx){
-      if(y>255){doc.addPage();y=20;}
-      doc.setFontSize(11);doc.setFont(undefined,'bold');
-      doc.text((idx+1)+'. '+String(r.user||'')+' · '+String(r.store||''),14,y);y+=5;
-      doc.setFont(undefined,'normal');doc.setFontSize(9);
-      var l1=doc.splitTextToSize(String(r.lesson||'')+' ('+String(r.code||'')+')',pw-28);
-      doc.text(l1,14,y);y+=l1.length*4+1;
-      doc.text('Punteggio: '+r.pct+'%  '+r.ok+'/'+r.tot+' · '+String(r.timeStr||''),14,y);y+=4;
-      doc.text('Data: '+String(r.date||''),14,y);y+=7;
+function startLivePoll(){
+  stopLivePoll();
+  liveState.pollInterval = setInterval(pollLiveSession, 2500);
+}
+
+function stopLivePoll(){
+  clearInterval(liveState.pollInterval); liveState.pollInterval = null;
+  clearInterval(liveState.timerInterval); liveState.timerInterval = null;
+}
+
+async function pollLiveSession(){
+  if(!liveState.session) return;
+  try {
+    var res = await sb.from('live_sessions').select('*').eq('id',liveState.session.id).single();
+    if(res.error || !res.data) return;
+    var data = res.data;
+    if(data.status === 'ended'){
+      stopLivePoll();
+      liveState.session = data;
+      await showLiveFinalLeaderboard();
+      return;
+    }
+    liveState.session = data;
+    var qIdx = data.current_question_index;
+    if(qIdx < 0){ return; } // waiting — do nothing, stay on waiting screen
+    if(qIdx !== liveState.currentQIndex){
+      liveState.currentQIndex = qIdx;
+      liveState.questionStartedAt = data.question_started_at;
+      var q = liveState.questions[qIdx];
+      if(q && !liveState.answered[q.id]){
+        renderLiveQuestion(q);
+      } else if(q && liveState.answered[q.id]){
+        // Already answered this question, show wait screen
+        renderLiveWaitNext();
+      }
+    }
+  } catch(e){ console.warn('pollLiveSession:', e); }
+}
+
+function renderLiveWaiting(){
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  body.innerHTML =
+    '<div style="text-align:center;padding:2.5rem 1rem">'
+    +'<div style="font-size:52px;margin-bottom:1rem">&#9889;</div>'
+    +'<div style="font-size:22px;font-weight:700;color:var(--dng);margin-bottom:.5rem">LIVE IN CORSO</div>'
+    +'<div style="font-size:15px;color:var(--tx);font-weight:600;margin-bottom:.25rem">'+esc(liveState.session ? liveState.session.title : '')+'</div>'
+    +'<div style="font-size:14px;color:var(--mu);margin-bottom:2rem">Ciao <strong>'+esc(S.user.name)+'</strong> &#128075;</div>'
+    +'<div class="spinner" style="margin:0 auto"></div>'
+    +'<div style="font-size:13px;color:var(--mu);margin-top:1rem">In attesa della prossima domanda...</div>'
+    +'</div>';
+}
+
+function renderLiveWaitNext(){
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  body.innerHTML =
+    '<div style="text-align:center;padding:2rem 1rem">'
+    +'<div style="font-size:40px;margin-bottom:.75rem">&#9989;</div>'
+    +'<div style="font-size:16px;font-weight:600;color:var(--tx)">Risposta inviata!</div>'
+    +'<div class="spinner" style="margin:1.5rem auto"></div>'
+    +'<div style="font-size:13px;color:var(--mu)">In attesa della prossima domanda...</div>'
+    +'</div>';
+}
+
+function renderLiveQuestion(q){
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  var elapsed = liveState.questionStartedAt ?
+    Math.max(0, (Date.now() - new Date(liveState.questionStartedAt).getTime()) / 1000) : 0;
+  var timeLimit = q.time_limit || 20;
+  var timeLeft = Math.max(0, timeLimit - Math.floor(elapsed));
+  liveState.timeLeft = timeLeft;
+  var qIdx = liveState.currentQIndex;
+  var totalQ = liveState.questions.length;
+  var opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options || '[]');
+  var timerPct = timeLeft / timeLimit * 100;
+  var optsHtml = opts.map(function(o, i){
+    var label = String.fromCharCode(65+i);
+    return '<button class="live-opt" onclick="submitLiveAnswer(\''+q.id+'\','+i+','+timeLimit+')" id="live-opt-'+i+'">'
+      +'<span style="width:28px;height:28px;border-radius:50%;background:var(--sf);border:1px solid var(--br);display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">'+label+'</span>'
+      +'<span>'+esc(o)+'</span>'
+      +'</button>';
+  }).join('');
+  body.innerHTML =
+    '<div class="live-question-card">'
+    +'<div style="font-size:12px;color:var(--mu);margin-bottom:.75rem">Domanda '+(qIdx+1)+' di '+totalQ+'</div>'
+    +'<div class="live-timer-bar"><div class="live-timer-fill" id="live-timer-fill" style="width:'+timerPct+'%"></div></div>'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.25rem;gap:10px">'
+    +'<div style="font-size:17px;font-weight:600;line-height:1.4">'+esc(q.question_text)+'</div>'
+    +'<div id="live-timer-num" style="font-size:24px;font-weight:700;color:var(--dng);flex-shrink:0;min-width:44px;text-align:right">'+timeLeft+'</div>'
+    +'</div>'
+    +'</div>'
+    +optsHtml;
+  clearInterval(liveState.timerInterval);
+  liveState.timerInterval = setInterval(function(){
+    liveState.timeLeft = Math.max(0, liveState.timeLeft - 1);
+    var numEl = document.getElementById('live-timer-num');
+    var fillEl = document.getElementById('live-timer-fill');
+    if(numEl) numEl.textContent = liveState.timeLeft;
+    if(numEl) numEl.style.color = liveState.timeLeft <= 5 ? 'var(--dng)' : 'var(--wrn)';
+    if(fillEl) fillEl.style.width = (liveState.timeLeft / timeLimit * 100) + '%';
+    if(liveState.timeLeft <= 0){
+      clearInterval(liveState.timerInterval);
+      if(!liveState.answered[q.id]) handleLiveTimeout(q);
+    }
+  }, 1000);
+}
+
+async function submitLiveAnswer(questionId, answerIndex, timeLimit){
+  if(liveState.answered[questionId]) return;
+  liveState.answered[questionId] = true;
+  clearInterval(liveState.timerInterval);
+  var responseMs = liveState.questionStartedAt ?
+    (Date.now() - new Date(liveState.questionStartedAt).getTime()) :
+    (timeLimit * 1000);
+  var q = liveState.questions.find(function(x){ return x.id === questionId; });
+  if(!q) return;
+  var isCorrect = (answerIndex === q.correct_index);
+  var timeUsed = Math.min(responseMs / 1000, timeLimit);
+  var points = isCorrect ? Math.max(100, Math.round(1000 * (timeLimit - timeUsed) / timeLimit)) : 0;
+  liveState.myScore += points;
+  document.querySelectorAll('.live-opt').forEach(function(btn){ btn.disabled = true; });
+  var optEl = document.getElementById('live-opt-'+answerIndex);
+  if(optEl) optEl.classList.add(isCorrect ? 'correct' : 'wrong');
+  try {
+    await sb.from('live_responses').upsert({
+      session_id: liveState.session.id,
+      question_id: questionId,
+      user_name: S.user.name,
+      store: S.user.store,
+      answer_index: answerIndex,
+      is_correct: isCorrect,
+      points: points,
+      response_time_ms: Math.round(responseMs)
+    }, {onConflict:'session_id,question_id,user_name'});
+  } catch(e){ console.warn('submitLiveAnswer save:', e); }
+  var body = document.getElementById('live-body-student');
+  if(body){
+    var opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options || '[]');
+    var qCard = body.querySelector('.live-question-card');
+    if(qCard){
+      var fbColor = isCorrect ? 'var(--suc)' : 'var(--dng)';
+      qCard.innerHTML =
+        '<div style="text-align:center;padding:1.25rem">'
+        +'<div style="font-size:44px;font-weight:700;color:'+fbColor+'">'+(isCorrect?'&#10003;':'&#10007;')+'</div>'
+        +'<div style="font-size:20px;font-weight:700;color:'+fbColor+';margin:.4rem 0">'+(isCorrect?'Corretto!':'Sbagliato!')+'</div>'
+        +(isCorrect
+          ? '<div style="font-size:22px;font-weight:700;color:var(--ac)">+'+points+' punti</div>'
+          : '<div style="font-size:14px;color:var(--mu)">Risposta corretta: <strong>'+esc(opts[q.correct_index]||'')+'</strong></div>'
+        )
+        +'<div style="font-size:13px;color:var(--mu);margin-top:1rem">In attesa della prossima domanda...</div>'
+        +'</div>';
+    }
+  }
+}
+
+function handleLiveTimeout(q){
+  liveState.answered[q.id] = true;
+  document.querySelectorAll('.live-opt').forEach(function(btn){ btn.disabled = true; });
+  sb.from('live_responses').upsert({
+    session_id: liveState.session.id,
+    question_id: q.id,
+    user_name: S.user.name,
+    store: S.user.store,
+    answer_index: -1,
+    is_correct: false,
+    points: 0,
+    response_time_ms: q.time_limit * 1000
+  }, {onConflict:'session_id,question_id,user_name'});
+  var body = document.getElementById('live-body-student');
+  if(body){
+    var opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options || '[]');
+    var qCard = body.querySelector('.live-question-card');
+    if(qCard){
+      qCard.innerHTML =
+        '<div style="text-align:center;padding:1.25rem">'
+        +'<div style="font-size:44px;margin-bottom:.5rem">&#9200;</div>'
+        +'<div style="font-size:18px;font-weight:700;color:var(--wrn)">Tempo scaduto!</div>'
+        +'<div style="font-size:14px;color:var(--mu);margin-top:.5rem">Risposta corretta: <strong>'+esc(opts[q.correct_index]||'')+'</strong></div>'
+        +'<div style="font-size:13px;color:var(--mu);margin-top:1rem">In attesa della prossima domanda...</div>'
+        +'</div>';
+    }
+  }
+}
+
+async function showLiveFinalLeaderboard(){
+  try {
+    var sessId = liveState.session.id;
+    var res = await sb.from('live_responses').select('user_name,store,points').eq('session_id',sessId);
+    var byUser = {};
+    (res.data||[]).forEach(function(r){
+      var k = r.user_name+'|||'+(r.store||'');
+      if(!byUser[k]) byUser[k]={name:r.user_name, store:r.store||'', total:0};
+      byUser[k].total += r.points;
     });
-    doc.save('risultati_unlimited_accademy.pdf');
-  }catch(e){console.error(e);alert('Errore PDF: '+e.message);}
+    var ranked = Object.values(byUser).sort(function(a,b){ return b.total-a.total; });
+    var myRank = ranked.findIndex(function(x){ return x.name===S.user.name; })+1;
+    var body = document.getElementById('live-body-student');
+    if(!body) return;
+    var rows = ranked.slice(0,10).map(function(u,i){
+      var isMe = u.name===S.user.name;
+      var medal = i===0?'&#129351;':i===1?'&#129352;':i===2?'&#129353;':(i+1)+'.';
+      return '<div class="live-leaderboard-row" style="'+(isMe?'border-color:var(--ac);background:var(--ac-l)':'')+'">'
+        +'<div class="live-ldr-pos">'+medal+'</div>'
+        +'<div class="live-ldr-name"><div>'+esc(u.name)+(isMe?' <span style="font-size:11px;color:var(--ac)">(tu)</span>':'')+'</div>'
+        +'<div style="font-size:11px;color:var(--mu)">'+esc(u.store)+'</div></div>'
+        +'<div class="live-ldr-pts">'+u.total+'</div>'
+        +'</div>';
+    }).join('');
+    body.innerHTML =
+      '<div style="text-align:center;margin-bottom:1.5rem">'
+      +'<div style="font-size:48px">&#127942;</div>'
+      +'<div style="font-size:22px;font-weight:700;margin:.5rem 0">LIVE TERMINATA!</div>'
+      +'<div style="font-size:14px;color:var(--mu)">'+esc(liveState.session.title)+'</div>'
+      +(myRank>0?'<div style="margin-top:.75rem;font-size:16px">Il tuo risultato: <strong style="color:var(--ac)">#'+myRank+' &mdash; '+liveState.myScore+' punti</strong></div>':'')
+      +'</div>'
+      +'<div style="margin-bottom:.75rem;font-size:13px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em">Classifica finale</div>'
+      +rows
+      +'<div style="text-align:center;margin-top:1.5rem"><button class="btn" onclick="goLogin()"><i class="ti ti-home"></i> Torna alla home</button></div>';
+  } catch(e){ console.warn('showLiveFinalLeaderboard:', e); }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── LIVE FEATURE — ADMIN SIDE (LIVE MANAGER) ─────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+var lmState = { sessions:[], currentForm:null, editQuestions:[] };
+
+async function loadLiveSessions(){
+  var res = await sb.from('live_sessions').select('*').order('created_at',{ascending:false}).limit(10);
+  if(!res.error) lmState.sessions = res.data || [];
+  renderLiveManager();
+}
+
+function renderLiveManager(){
+  var el = document.getElementById('live-manager-body');
+  if(!el) return;
+  var sessions = lmState.sessions;
+  var active = sessions.find(function(s){ return s.status==='active'; });
+  var html = '';
+  if(active){
+    html += '<div style="background:rgba(226,75,74,.1);border:1px solid var(--dng);border-radius:10px;padding:1rem;margin-bottom:1rem">'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:.5rem"><span class="live-badge">LIVE</span><strong>'+esc(active.title)+'</strong></div>'
+      +'<div style="font-size:13px;color:var(--mu);margin-bottom:.75rem">Domanda: '+(active.current_question_index>=0?(active.current_question_index+1):'non avviata')+'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<a href="live-host.html" target="_blank" class="btn pr sm"><i class="ti ti-external-link"></i> Apri Host Dashboard</a>'
+      +'<button class="btn sm dn" onclick="confirmEndLive(\''+active.id+'\')"><i class="ti ti-player-stop"></i> Termina LIVE</button>'
+      +'</div></div>';
+  }
+  if(!sessions.filter(function(s){ return s.status!=='active'; }).length && !active){
+    html += '<div class="mu sm-tx" style="margin-bottom:1rem">Nessuna sessione LIVE creata.</div>';
+  }
+  sessions.forEach(function(s){
+    if(s.status==='active') return;
+    var statusLabel = s.status==='ended'
+      ? '<span style="font-size:11px;background:var(--sf);color:var(--mu);padding:2px 8px;border-radius:99px;border:1px solid var(--br)">Terminata</span>'
+      : '<span style="font-size:11px;background:var(--wrn-l);color:var(--wrn);padding:2px 8px;border-radius:99px">Bozza</span>';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:.75rem;background:var(--sf);border:1px solid var(--br);border-radius:8px;margin-bottom:.5rem">'
+      +'<div><div style="font-weight:600;font-size:14px">'+esc(s.title)+'</div>'
+      +'<div style="font-size:12px;color:var(--mu);margin-top:2px;display:flex;align-items:center;gap:6px">'+new Date(s.created_at).toLocaleDateString('it-IT')+statusLabel+'</div></div>'
+      +(s.status==='draft'?'<button class="btn sm pr" onclick="activateLiveSession(\''+s.id+'\')"><i class="ti ti-bolt"></i> Attiva</button>':'')
+      +'</div>';
+  });
+  html += '<button class="btn sm" style="margin-top:.25rem" onclick="showCreateLiveForm()"><i class="ti ti-plus"></i> Crea nuova LIVE</button>';
+  el.innerHTML = html;
+  var formEl = document.getElementById('live-create-form');
+  if(formEl) formEl.style.display = lmState.currentForm==='create' ? 'block' : 'none';
+}
+
+function showCreateLiveForm(){
+  lmState.currentForm = 'create';
+  lmState.editQuestions = [{text:'', options:['','','',''], correct:0, time_limit:20}];
+  renderLiveManager();
+  renderLiveFormQuestions();
+}
+
+function cancelLiveForm(){
+  lmState.currentForm = null;
+  document.getElementById('live-create-form').style.display = 'none';
+  document.getElementById('live-form-title').value = '';
+}
+
+function renderLiveFormQuestions(){
+  var el = document.getElementById('live-form-questions');
+  if(!el) return;
+  el.innerHTML = lmState.editQuestions.map(function(q, qi){
+    var optsHtml = q.options.map(function(o, oi){
+      var label = String.fromCharCode(65+oi);
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<input type="radio" name="correct-'+qi+'" value="'+oi+'" '+(q.correct===oi?'checked':'')+' onchange="setLiveCorrect('+qi+','+oi+')" style="accent-color:var(--ac);width:16px;height:16px">'
+        +'<span style="color:var(--mu);font-size:13px;width:16px">'+label+'</span>'
+        +'<input type="text" placeholder="Opzione '+label+'" value="'+esc(o)+'" oninput="updateLiveOption('+qi+','+oi+',this.value)" style="flex:1;border:1px solid var(--br);border-radius:6px;padding:6px 10px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
+        +'</div>';
+    }).join('');
+    return '<div style="background:var(--sf);border:1px solid var(--br);border-radius:9px;padding:1rem;margin-bottom:.75rem">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">'
+      +'<span style="font-size:12px;font-weight:600;color:var(--info);background:var(--info-l);padding:3px 10px;border-radius:99px">Domanda '+(qi+1)+'</span>'
+      +(lmState.editQuestions.length>1?'<button onclick="removeLiveQuestion('+qi+')" style="background:none;border:none;color:var(--dng);cursor:pointer;font-size:13px;padding:2px"><i class="ti ti-trash"></i></button>':'')
+      +'</div>'
+      +'<input type="text" placeholder="Testo della domanda..." value="'+esc(q.text)+'" oninput="updateLiveQText('+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:8px 12px;background:var(--cb);color:var(--tx);font-size:14px;font-family:inherit;margin-bottom:.75rem">'
+      +optsHtml
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:.5rem">'
+      +'<span style="font-size:12px;color:var(--mu)">Tempo risposta:</span>'
+      +'<select onchange="updateLiveQTime('+qi+',this.value)" style="border:1px solid var(--br);border-radius:6px;padding:4px 8px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
+      +'<option value="10" '+(q.time_limit===10?'selected':'')+'>10s</option>'
+      +'<option value="20" '+(q.time_limit===20?'selected':'')+'>20s</option>'
+      +'<option value="30" '+(q.time_limit===30?'selected':'')+'>30s</option>'
+      +'<option value="60" '+(q.time_limit===60?'selected':'')+'>60s</option>'
+      +'</select></div></div>';
+  }).join('');
+}
+
+function updateLiveQText(qi, val){ lmState.editQuestions[qi].text = val; }
+function updateLiveOption(qi, oi, val){ lmState.editQuestions[qi].options[oi] = val; }
+function setLiveCorrect(qi, oi){ lmState.editQuestions[qi].correct = parseInt(oi); }
+function updateLiveQTime(qi, val){ lmState.editQuestions[qi].time_limit = parseInt(val); }
+function addLiveQuestion(){
+  lmState.editQuestions.push({text:'', options:['','','',''], correct:0, time_limit:20});
+  renderLiveFormQuestions();
+}
+function removeLiveQuestion(qi){
+  lmState.editQuestions.splice(qi, 1);
+  renderLiveFormQuestions();
+}
+
+async function saveLiveSession(){
+  var title = document.getElementById('live-form-title').value.trim();
+  if(!title){ alert('Inserisci un titolo per la sessione.'); return; }
+  var qs = lmState.editQuestions;
+  if(!qs.length){ alert('Aggiungi almeno una domanda.'); return; }
+  for(var i=0; i<qs.length; i++){
+    if(!qs[i].text.trim()){ alert('Domanda '+(i+1)+': inserisci il testo della domanda.'); return; }
+    var filled = qs[i].options.filter(function(o){ return o.trim(); });
+    if(filled.length < 2){ alert('Domanda '+(i+1)+': inserisci almeno 2 opzioni di risposta.'); return; }
+  }
+  showLoad('Salvataggio...');
+  try {
+    var sessRes = await sb.from('live_sessions').insert({title:title, status:'draft'}).select().single();
+    if(sessRes.error) throw sessRes.error;
+    var toInsert = qs.map(function(q,i){
+      return {session_id:sessRes.data.id, question_text:q.text, options:q.options, correct_index:q.correct, time_limit:q.time_limit, order_index:i};
+    });
+    var qRes = await sb.from('live_questions').insert(toInsert);
+    if(qRes.error) throw qRes.error;
+    hideLoad();
+    lmState.currentForm = null;
+    document.getElementById('live-form-title').value = '';
+    await loadLiveSessions();
+  } catch(e){ hideLoad(); alert('Errore nel salvataggio: '+e.message); }
+}
+
+async function activateLiveSession(sessionId){
+  if(!confirm('Attivare questa sessione LIVE? Tutti gli utenti la vedranno appena entrano.')) return;
+  await sb.from('live_sessions').update({status:'ended'}).eq('status','active');
+  var res = await sb.from('live_sessions').update({status:'active', current_question_index:-1, question_started_at:null}).eq('id',sessionId);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  await loadLiveSessions();
+}
+
+async function confirmEndLive(sessionId){
+  if(!confirm('Terminare la LIVE? Gli studenti vedranno la classifica finale.')) return;
+  var res = await sb.from('live_sessions').update({status:'ended'}).eq('id',sessionId);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  await loadLiveSessions();
+}
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-(async function(){
-  try {
-    showLoad('Caricamento...');
-    await loadStores();
-    await loadLessons();
-    await loadActiveLesson();
-    hideLoad();
-    populateSel();
-    renderLoginLessons();
-    initLoginName();
-  } catch(e){ hideLoad(); console.error('Init error:',e); }
-})();
-
+document.addEventListener('DOMContentLoaded', function(){ goLogin(); });
 </script>
+
+<style>
+/* ── LIVE STUDENT SCREEN ── */
+.live-question-card{background:var(--cb);border:1px solid var(--br);border-radius:14px;padding:1.25rem;margin-bottom:1rem}
+.live-timer-bar{height:6px;background:#2a2d33;border-radius:99px;overflow:hidden;margin-bottom:1rem}
+.live-timer-fill{height:100%;background:var(--dng);border-radius:99px;transition:width 1s linear}
+.live-opt{display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid var(--br);border-radius:10px;cursor:pointer;background:var(--cb);color:var(--tx);width:100%;font-size:15px;font-family:inherit;margin-bottom:10px;transition:border-color .15s,background .15s;text-align:left}
+.live-opt:hover:not(:disabled){border-color:var(--ac);background:var(--ac-l)}
+.live-opt.correct{border-color:var(--suc)!important;background:rgba(76,175,125,.2)!important;color:var(--tx)}
+.live-opt.wrong{border-color:var(--dng)!important;background:var(--dng-l)!important;color:var(--tx)}
+.live-opt:disabled{cursor:default}
+.live-leaderboard-row{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;background:var(--cb);border:1px solid var(--br);margin-bottom:6px}
+.live-ldr-pos{width:32px;text-align:center;font-weight:700;font-size:17px}
+.live-ldr-name{flex:1;font-weight:600}
+.live-ldr-pts{font-size:20px;font-weight:700;color:var(--ac)}
+</style>
+
+<!-- LIVE STUDENT SCREEN -->
+<div class="screen" id="sc-live">
+  <div class="app">
+    <div class="topbar" style="margin-bottom:1rem;border-color:rgba(226,75,74,.4);background:rgba(226,75,74,.06)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="live-badge">LIVE</span>
+        <span id="live-session-title" style="font-weight:600;font-size:14px"></span>
+      </div>
+      <div style="font-size:12px;color:var(--mu)" id="live-user-display"></div>
+    </div>
+    <div id="live-body-student"></div>
+  </div>
+</div>
+
 </body>
 </html>
