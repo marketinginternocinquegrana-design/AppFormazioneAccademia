@@ -2791,9 +2791,26 @@ async function pollLiveSession(){
       await showLiveFinalLeaderboard();
       return;
     }
+    var prevMode = liveState.session.display_mode || 'question';
+    var newMode  = data.display_mode || 'question';
     liveState.session = data;
+
+    // Handle display_mode changes (slide, leaderboard, paused)
+    if(newMode !== 'question'){
+      if(newMode !== prevMode || newMode === 'leaderboard'){
+        if(newMode === 'slide')        renderLiveSlide(data);
+        else if(newMode === 'leaderboard') await renderLiveInterimLeaderboard();
+        else if(newMode === 'paused')  renderLivePaused(data);
+      }
+      return; // don't process questions while in special display mode
+    }
+    // Back to question mode after slide/pause
+    if(prevMode !== 'question' && data.current_question_index < 0){
+      renderLiveWaiting(); return;
+    }
+
     var qIdx = data.current_question_index;
-    if(qIdx < 0){ return; } // waiting — do nothing, stay on waiting screen
+    if(qIdx < 0){ return; }
     if(qIdx !== liveState.currentQIndex){
       liveState.currentQIndex = qIdx;
       liveState.questionStartedAt = data.question_started_at;
@@ -2801,7 +2818,6 @@ async function pollLiveSession(){
       if(q && !liveState.answered[q.id]){
         renderLiveQuestion(q);
       } else if(q && liveState.answered[q.id]){
-        // Already answered this question, show wait screen
         renderLiveWaitNext();
       }
     }
@@ -2831,6 +2847,69 @@ function renderLiveWaitNext(){
     +'<div style="font-size:16px;font-weight:600;color:var(--tx)">Risposta inviata!</div>'
     +'<div class="spinner" style="margin:1.5rem auto"></div>'
     +'<div style="font-size:13px;color:var(--mu)">In attesa della prossima domanda...</div>'
+    +'</div>';
+}
+
+function renderLiveSlide(session){
+  clearInterval(liveState.timerInterval);
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  var color = session.slide_color || '#C9A84C';
+  body.innerHTML =
+    '<div style="min-height:52vh;border-radius:14px;background:'+color+';display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;text-align:center;margin-bottom:1rem">'
+    +'<div style="font-size:26px;font-weight:700;color:#fff;line-height:1.3;margin-bottom:'+(session.slide_text?'.75rem':'0')+';text-shadow:0 1px 4px rgba(0,0,0,.25)">'
+    +esc(session.slide_title||'')
+    +'</div>'
+    +(session.slide_text?'<div style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55">'+esc(session.slide_text)+'</div>':'')
+    +'</div>'
+    +'<div style="text-align:center;font-size:13px;color:var(--mu)">Il formatore sta introducendo la prossima sezione...</div>';
+}
+
+async function renderLiveInterimLeaderboard(){
+  clearInterval(liveState.timerInterval);
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  try {
+    var res = await sb.from('live_responses').select('user_name,store,points').eq('session_id',liveState.session.id);
+    var byUser = {};
+    (res.data||[]).forEach(function(r){
+      var k = r.user_name;
+      if(!byUser[k]) byUser[k]={name:r.user_name, store:r.store||'', total:0};
+      byUser[k].total += r.points;
+    });
+    var ranked = Object.values(byUser).sort(function(a,b){ return b.total-a.total; });
+    var myRank = ranked.findIndex(function(x){ return x.name===S.user.name; })+1;
+    var medals = ['&#129351;','&#129352;','&#129353;'];
+    body.innerHTML =
+      '<div style="text-align:center;margin-bottom:1.25rem">'
+      +'<div style="font-size:36px;margin-bottom:.5rem">&#128202;</div>'
+      +'<div style="font-size:18px;font-weight:700;margin-bottom:.25rem">Classifica intermedia</div>'
+      +(myRank>0?'<div style="font-size:13px;color:var(--mu)">Sei <strong style="color:var(--ac)">#'+myRank+'</strong> con <strong style="color:var(--ac)">'+liveState.myScore+' pt</strong></div>':'')
+      +'</div>'
+      +ranked.slice(0,8).map(function(u,i){
+        var isMe = u.name===S.user.name;
+        return '<div class="live-leaderboard-row" style="'+(isMe?'border-color:var(--ac);background:var(--ac-l)':'')+'">'
+          +'<div class="live-ldr-pos">'+(medals[i]||(i+1)+'.')+'</div>'
+          +'<div class="live-ldr-name"><div>'+esc(u.name)+(isMe?' <span style="font-size:11px;color:var(--ac)">(tu)</span>':'')+'</div>'
+          +'<div style="font-size:11px;color:var(--mu)">'+esc(u.store)+'</div></div>'
+          +'<div class="live-ldr-pts">'+u.total+'</div>'
+          +'</div>';
+      }).join('');
+  } catch(e){}
+}
+
+function renderLivePaused(session){
+  clearInterval(liveState.timerInterval);
+  var body = document.getElementById('live-body-student');
+  if(!body) return;
+  body.innerHTML =
+    '<div style="text-align:center;padding:2rem 1rem">'
+    +'<div style="font-size:44px;margin-bottom:.75rem">&#9208;</div>'
+    +'<div style="font-size:18px;font-weight:700;margin-bottom:.5rem;color:var(--wrn)">Pausa &mdash; discutiamo insieme</div>'
+    +(session.pause_prompt
+      ?'<div style="background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:1rem 1.25rem;margin:1rem 0;font-size:15px;color:var(--tx);font-style:italic;line-height:1.55;text-align:left">'+esc(session.pause_prompt)+'</div>'
+      :'')
+    +'<div style="font-size:13px;color:var(--mu);margin-top:.75rem">Torna qui quando il formatore riprende</div>'
     +'</div>';
 }
 
@@ -2889,7 +2968,15 @@ async function submitLiveAnswer(questionId, answerIndex, timeLimit){
   if(!q) return;
   var isCorrect = (answerIndex === q.correct_index);
   var timeUsed = Math.min(responseMs / 1000, timeLimit);
-  var points = isCorrect ? Math.max(100, Math.round(1000 * (timeLimit - timeUsed) / timeLimit)) : 0;
+  var scoringMode = q.scoring_mode || 'speed';
+  var points = 0;
+  if(isCorrect){
+    if(scoringMode === 'accuracy'){
+      points = 500; // esattezza: punti fissi indipendenti dalla velocita
+    } else {
+      points = Math.max(100, Math.round(1000 * (timeLimit - timeUsed) / timeLimit)); // speed: scala con velocita
+    }
+  }
   liveState.myScore += points;
   document.querySelectorAll('.live-opt').forEach(function(btn){ btn.disabled = true; });
   var optEl = document.getElementById('live-opt-'+answerIndex);
@@ -3055,7 +3142,7 @@ function renderLiveManager(){
 
 function showCreateLiveForm(){
   lmState.currentForm = 'create';
-  lmState.editQuestions = [{text:'', options:['','','',''], correct:0, time_limit:20}];
+  lmState.editQuestions = [{text:'', options:['','','',''], correct:0, time_limit:20, section_name:'', scoring_mode:'speed'}];
   renderLiveManager();
   renderLiveFormQuestions();
 }
@@ -3083,16 +3170,28 @@ function renderLiveFormQuestions(){
       +'<span style="font-size:12px;font-weight:600;color:var(--info);background:var(--info-l);padding:3px 10px;border-radius:99px">Domanda '+(qi+1)+'</span>'
       +(lmState.editQuestions.length>1?'<button onclick="removeLiveQuestion('+qi+')" style="background:none;border:none;color:var(--dng);cursor:pointer;font-size:13px;padding:2px"><i class="ti ti-trash"></i></button>':'')
       +'</div>'
+      +'<input type="text" placeholder="Nome sezione (es: Gestire le Obiezioni)" value="'+esc(q.section_name||'')+'" oninput="updateLiveQSection('+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:6px 10px;background:var(--cb);color:var(--ac);font-size:12px;font-family:inherit;margin-bottom:.5rem">'
       +'<input type="text" placeholder="Testo della domanda..." value="'+esc(q.text)+'" oninput="updateLiveQText('+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:8px 12px;background:var(--cb);color:var(--tx);font-size:14px;font-family:inherit;margin-bottom:.75rem">'
       +optsHtml
-      +'<div style="display:flex;align-items:center;gap:8px;margin-top:.5rem">'
-      +'<span style="font-size:12px;color:var(--mu)">Tempo risposta:</span>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-top:.5rem;flex-wrap:wrap">'
+      +'<span style="font-size:12px;color:var(--mu)">Tempo:</span>'
       +'<select onchange="updateLiveQTime('+qi+',this.value)" style="border:1px solid var(--br);border-radius:6px;padding:4px 8px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
       +'<option value="10" '+(q.time_limit===10?'selected':'')+'>10s</option>'
+      +'<option value="15" '+(q.time_limit===15?'selected':'')+'>15s</option>'
       +'<option value="20" '+(q.time_limit===20?'selected':'')+'>20s</option>'
+      +'<option value="25" '+(q.time_limit===25?'selected':'')+'>25s</option>'
       +'<option value="30" '+(q.time_limit===30?'selected':'')+'>30s</option>'
+      +'<option value="45" '+(q.time_limit===45?'selected':'')+'>45s</option>'
       +'<option value="60" '+(q.time_limit===60?'selected':'')+'>60s</option>'
-      +'</select></div></div>';
+      +'<option value="90" '+(q.time_limit===90?'selected':'')+'>90s</option>'
+      +'<option value="120" '+(q.time_limit===120?'selected':'')+'>120s</option>'
+      +'</select>'
+      +'<span style="font-size:12px;color:var(--mu);margin-left:6px">Punteggio:</span>'
+      +'<select onchange="updateLiveQMode('+qi+',this.value)" style="border:1px solid var(--br);border-radius:6px;padding:4px 8px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
+      +'<option value="speed" '+((!q.scoring_mode||q.scoring_mode==='speed')?'selected':'')+'>Velocita (max 1000 pt)</option>'
+      +'<option value="accuracy" '+(q.scoring_mode==='accuracy'?'selected':'')+'>Esattezza (500 pt fissi)</option>'
+      +'</select>'
+      +'</div></div>';
   }).join('');
 }
 
@@ -3100,8 +3199,10 @@ function updateLiveQText(qi, val){ lmState.editQuestions[qi].text = val; }
 function updateLiveOption(qi, oi, val){ lmState.editQuestions[qi].options[oi] = val; }
 function setLiveCorrect(qi, oi){ lmState.editQuestions[qi].correct = parseInt(oi); }
 function updateLiveQTime(qi, val){ lmState.editQuestions[qi].time_limit = parseInt(val); }
+function updateLiveQSection(qi, val){ lmState.editQuestions[qi].section_name = val; }
+function updateLiveQMode(qi, val){ lmState.editQuestions[qi].scoring_mode = val; }
 function addLiveQuestion(){
-  lmState.editQuestions.push({text:'', options:['','','',''], correct:0, time_limit:20});
+  lmState.editQuestions.push({text:'', options:['','','',''], correct:0, time_limit:20, section_name:'', scoring_mode:'speed'});
   renderLiveFormQuestions();
 }
 function removeLiveQuestion(qi){
@@ -3124,7 +3225,7 @@ async function saveLiveSession(){
     var sessRes = await sb.from('live_sessions').insert({title:title, status:'draft'}).select().single();
     if(sessRes.error) throw sessRes.error;
     var toInsert = qs.map(function(q,i){
-      return {session_id:sessRes.data.id, question_text:q.text, options:q.options, correct_index:q.correct, time_limit:q.time_limit, order_index:i};
+      return {session_id:sessRes.data.id, question_text:q.text, options:q.options, correct_index:q.correct, time_limit:q.time_limit, order_index:i, section_name:q.section_name||'', scoring_mode:q.scoring_mode||'speed'};
     });
     var qRes = await sb.from('live_questions').insert(toInsert);
     if(qRes.error) throw qRes.error;
