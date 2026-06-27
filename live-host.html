@@ -67,10 +67,29 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8
 
 <div id="no-live-screen" class="screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
   <div style="text-align:center;padding:2rem">
-    <div style="font-size:52px;margin-bottom:1rem">&#128268;</div>
+    <div style="font-size:52px;margin-bottom:1rem">🔌</div>
     <div style="font-size:20px;font-weight:700;margin-bottom:.5rem">Nessuna LIVE attiva</div>
     <div style="font-size:14px;color:var(--mu);margin-bottom:1.5rem">Attiva una sessione dal pannello formatore, poi ricarica questa pagina.</div>
     <button class="btn pr" onclick="location.reload()"><i class="ti ti-refresh"></i> Ricarica</button>
+  </div>
+</div>
+
+<div id="ended-screen" class="screen" style="min-height:100vh;padding:2rem 0">
+  <div class="app">
+    <div style="text-align:center;margin-bottom:2rem">
+      <div style="font-size:56px;margin-bottom:.5rem">🏆</div>
+      <div style="font-size:26px;font-weight:800;color:var(--ac)" id="ended-title">LIVE Terminata!</div>
+      <div style="font-size:14px;color:var(--mu);margin-top:.5rem" id="ended-subtitle"></div>
+    </div>
+    <div style="max-width:560px;margin:0 auto">
+      <div class="card">
+        <div style="font-size:15px;font-weight:700;margin-bottom:1rem;text-align:center;color:var(--mu);text-transform:uppercase;letter-spacing:.05em">Classifica Finale</div>
+        <div id="ended-leaderboard"></div>
+      </div>
+      <div style="text-align:center;margin-top:1rem">
+        <button class="btn pr" onclick="location.reload()"><i class="ti ti-refresh"></i> Nuova sessione</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -396,13 +415,29 @@ async function endLive(){
   if(!confirm('Terminare la LIVE? Gli studenti vedranno la classifica finale.')) return;
   clearInterval(H.pollInterval);
   clearInterval(H.timerInterval);
-  await refreshLeaderboard();
   var res = await sb.from('live_sessions').update({status:'ended'}).eq('id',H.session.id);
   if(res.error){ alert('Errore: '+res.error.message); return; }
-  show('no-live-screen');
-  document.getElementById('no-live-screen').querySelector('div div:first-child').textContent = '&#127942;';
-  document.getElementById('no-live-screen').querySelector('div div:nth-child(2)').textContent = 'LIVE terminata!';
-  document.getElementById('no-live-screen').querySelector('div div:nth-child(3)').textContent = 'La classifica finale &#232; visibile agli studenti.';
+  // Build final leaderboard
+  var lbRes = await sb.from('live_responses').select('user_name,store,points').eq('session_id',H.session.id);
+  var data = lbRes.data || [];
+  var byUser = {};
+  data.forEach(function(r){
+    var k = r.user_name;
+    if(!byUser[k]) byUser[k]={name:r.user_name, store:r.store||'', total:0};
+    byUser[k].total += r.points;
+  });
+  var ranked = Object.values(byUser).sort(function(a,b){ return b.total-a.total; });
+  document.getElementById('ended-title').textContent = H.session.title;
+  document.getElementById('ended-subtitle').textContent = ranked.length + ' partecipant' + (ranked.length===1?'e':'i') + ' · ' + H.questions.length + ' domande';
+  var medals = ['🥇','🥈','🥉'];
+  document.getElementById('ended-leaderboard').innerHTML = ranked.length ? ranked.map(function(u,i){
+    return '<div class="rank-row rank-'+(i+1)+'">'
+      +'<div class="rank-pos">'+(medals[i]||(i+1)+'.')+'</div>'
+      +'<div><div class="rank-name">'+esc(u.name)+'</div><div class="rank-store">'+esc(u.store)+'</div></div>'
+      +'<div class="rank-pts">'+u.total+' pt</div>'
+      +'</div>';
+  }).join('') : '<div style="color:var(--mu);text-align:center;padding:1rem">Nessuna risposta registrata.</div>';
+  show('ended-screen');
 }
 
 document.addEventListener('DOMContentLoaded', init);
