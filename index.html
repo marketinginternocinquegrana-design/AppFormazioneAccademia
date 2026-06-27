@@ -404,9 +404,9 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#111214;color:#e8
           <label>Titolo sessione</label>
           <input type="text" id="live-form-title" placeholder="es. Quiz Tecniche di Vendita &mdash; Giugno 2026">
         </div>
-        <div style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem">Domande <span style="font-weight:400;color:var(--mu)">(seleziona il cerchio per segnare la risposta corretta)</span></div>
-        <div id="live-form-questions"></div>
-        <button class="btn sm" onclick="addLiveQuestion()" style="width:100%;margin-bottom:1rem;border-style:dashed"><i class="ti ti-plus"></i> Aggiungi domanda</button>
+        <div style="font-size:12px;font-weight:600;color:var(--mu);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem">Blocchi <span style="font-weight:400;color:var(--mu)">(ogni blocco = 1 slide + 2 domande &mdash; max 10 blocchi)</span></div>
+        <div id="live-form-blocks"></div>
+        <button class="btn sm" onclick="addLiveBlock()" style="width:100%;margin-bottom:1rem;border-style:dashed"><i class="ti ti-plus"></i> Aggiungi blocco</button>
         <div style="display:flex;gap:8px;justify-content:flex-end">
           <button class="btn sm" onclick="cancelLiveForm()">Annulla</button>
           <button class="btn sm pr" onclick="saveLiveSession()"><i class="ti ti-check"></i> Salva sessione</button>
@@ -3148,97 +3148,209 @@ function renderLiveManager(){
   if(formEl) formEl.style.display = lmState.currentForm==='create' ? 'block' : 'none';
 }
 
+function makeEmptyBlock(){
+  return {
+    slide:{title:'',text:'',color:'#C9A84C',imageFile:null,imagePreviewUrl:null},
+    questions:[
+      {text:'',options:['','','',''],correct:0,time_limit:20,scoring_mode:'speed'},
+      {text:'',options:['','','',''],correct:0,time_limit:20,scoring_mode:'speed'}
+    ]
+  };
+}
+
 function showCreateLiveForm(){
   lmState.currentForm = 'create';
-  lmState.editQuestions = [{text:'', options:['','','',''], correct:0, time_limit:20, section_name:'', scoring_mode:'speed'}];
+  lmState.editBlocks = [makeEmptyBlock()];
   renderLiveManager();
-  renderLiveFormQuestions();
+  renderLiveFormBlocks();
 }
 
 function cancelLiveForm(){
   lmState.currentForm = null;
+  lmState.editBlocks = [];
   document.getElementById('live-create-form').style.display = 'none';
   document.getElementById('live-form-title').value = '';
 }
 
-function renderLiveFormQuestions(){
-  var el = document.getElementById('live-form-questions');
+function renderBlockQuestion(bi, qi){
+  var q = lmState.editBlocks[bi].questions[qi];
+  var optsHtml = q.options.map(function(o, oi){
+    var ltr = String.fromCharCode(65+oi);
+    return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
+      +'<input type="radio" name="bc-'+bi+'-'+qi+'" value="'+oi+'" '+(q.correct===oi?'checked':'')+' onchange="setBlockQCorrect('+bi+','+qi+','+oi+')" style="accent-color:var(--ac);width:14px;height:14px;flex-shrink:0">'
+      +'<span style="color:var(--mu);font-size:12px;width:14px;font-weight:600">'+ltr+'</span>'
+      +'<input type="text" placeholder="Opzione '+ltr+'" value="'+esc(o)+'" oninput="updateBlockQOption('+bi+','+qi+','+oi+',this.value)" style="flex:1;border:1px solid var(--br);border-radius:5px;padding:5px 8px;background:var(--cb);color:var(--tx);font-size:12px;font-family:inherit">'
+      +'</div>';
+  }).join('');
+  var timeSel = [10,15,20,25,30,45,60,90,120].map(function(t){
+    return '<option value="'+t+'" '+(q.time_limit===t?'selected':'')+'>'+t+'s</option>';
+  }).join('');
+  return '<div style="background:var(--cb);border:1px solid var(--br);border-radius:8px;padding:.75rem;margin-bottom:.625rem">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--info);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.5rem">Domanda '+(qi+1)+'</div>'
+    +'<input type="text" placeholder="Testo della domanda..." value="'+esc(q.text)+'" oninput="updateBlockQText('+bi+','+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:6px;padding:7px 10px;background:var(--sf);color:var(--tx);font-size:13px;font-family:inherit;margin-bottom:.6rem">'
+    +optsHtml
+    +'<div style="display:flex;align-items:center;gap:6px;margin-top:.5rem;flex-wrap:wrap">'
+    +'<span style="font-size:11px;color:var(--mu)">Tempo:</span>'
+    +'<select onchange="updateBlockQTime('+bi+','+qi+',this.value)" style="border:1px solid var(--br);border-radius:5px;padding:3px 6px;background:var(--sf);color:var(--tx);font-size:12px;font-family:inherit">'+timeSel+'</select>'
+    +'<span style="font-size:11px;color:var(--mu);margin-left:4px">Punteggio:</span>'
+    +'<select onchange="updateBlockQMode('+bi+','+qi+',this.value)" style="border:1px solid var(--br);border-radius:5px;padding:3px 6px;background:var(--sf);color:var(--tx);font-size:12px;font-family:inherit">'
+    +'<option value="speed" '+(!q.scoring_mode||q.scoring_mode==='speed'?'selected':'')+'>Velocita (max 1000)</option>'
+    +'<option value="accuracy" '+(q.scoring_mode==='accuracy'?'selected':'')+'>Esattezza (500 pt)</option>'
+    +'</select></div></div>';
+}
+
+function renderLiveFormBlocks(){
+  var el = document.getElementById('live-form-blocks');
   if(!el) return;
-  el.innerHTML = lmState.editQuestions.map(function(q, qi){
-    var optsHtml = q.options.map(function(o, oi){
-      var label = String.fromCharCode(65+oi);
-      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
-        +'<input type="radio" name="correct-'+qi+'" value="'+oi+'" '+(q.correct===oi?'checked':'')+' onchange="setLiveCorrect('+qi+','+oi+')" style="accent-color:var(--ac);width:16px;height:16px">'
-        +'<span style="color:var(--mu);font-size:13px;width:16px">'+label+'</span>'
-        +'<input type="text" placeholder="Opzione '+label+'" value="'+esc(o)+'" oninput="updateLiveOption('+qi+','+oi+',this.value)" style="flex:1;border:1px solid var(--br);border-radius:6px;padding:6px 10px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
-        +'</div>';
+  var blocks = lmState.editBlocks;
+  if(!blocks.length){
+    el.innerHTML = '<div style="text-align:center;padding:1.5rem 0;color:var(--mu);font-size:13px">Nessun blocco. Clicca + per iniziare.</div>';
+    return;
+  }
+  var COLORS = ['#C9A84C','#E24B4A','#4a9fd4','#4caf7d','#9c5cbf','#d4921a'];
+  el.innerHTML = blocks.map(function(block, bi){
+    var slide = block.slide;
+    var hasPrev = !!slide.imagePreviewUrl;
+    var colorsHtml = COLORS.map(function(c){
+      var sel = slide.color === c;
+      return '<div class="bc-dot" onclick="selectBlockSlideColor('+bi+',\''+c+'\')" data-color="'+c+'" style="width:24px;height:24px;border-radius:50%;background:'+c+';cursor:pointer;display:inline-block;margin-right:5px;outline:'+(sel?'3px solid #fff':'none')+';outline-offset:2px"></div>';
     }).join('');
-    return '<div style="background:var(--sf);border:1px solid var(--br);border-radius:9px;padding:1rem;margin-bottom:.75rem">'
-      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem">'
-      +'<span style="font-size:12px;font-weight:600;color:var(--info);background:var(--info-l);padding:3px 10px;border-radius:99px">Domanda '+(qi+1)+'</span>'
-      +(lmState.editQuestions.length>1?'<button onclick="removeLiveQuestion('+qi+')" style="background:none;border:none;color:var(--dng);cursor:pointer;font-size:13px;padding:2px"><i class="ti ti-trash"></i></button>':'')
+    var prevDiv = hasPrev
+      ? '<div id="slide-prev-'+bi+'" style="display:block;position:absolute;inset:0;background-image:url('+slide.imagePreviewUrl+');background-size:cover;background-position:center;border-radius:6px"></div>'
+      : '<div id="slide-prev-'+bi+'" style="display:none;position:absolute;inset:0;border-radius:6px"></div>';
+    var phDiv = '<div id="slide-ph-'+bi+'" style="display:'+(hasPrev?'none':'flex')+';flex-direction:column;align-items:center;gap:4px;position:relative;z-index:1"><i class="ti ti-photo-plus" style="font-size:20px;color:var(--mu)"></i><span style="font-size:11px;color:var(--mu)">Clicca per aggiungere JPEG</span></div>';
+    var rmBtn = '<button id="slide-rm-'+bi+'" onclick="removeBlockImage('+bi+')" style="display:'+(hasPrev?'inline-block':'none')+';background:none;border:none;color:var(--dng);cursor:pointer;font-size:11px;margin-bottom:.5rem;padding:0"><i class="ti ti-x"></i> Rimuovi immagine</button>';
+    return '<div class="live-block-card" style="background:var(--sf);border:1px solid var(--br);border-radius:12px;padding:1rem;margin-bottom:1rem">'
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--ac);text-transform:uppercase;letter-spacing:.04em">&#9632; Blocco '+(bi+1)+' di '+blocks.length+'</span>'
+      +(blocks.length>1?'<button onclick="removeLiveBlock('+bi+')" style="background:none;border:none;color:var(--dng);cursor:pointer;font-size:13px;padding:2px"><i class="ti ti-trash"></i> Elimina</button>':'')
       +'</div>'
-      +'<input type="text" placeholder="Nome sezione (es: Gestire le Obiezioni)" value="'+esc(q.section_name||'')+'" oninput="updateLiveQSection('+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:6px 10px;background:var(--cb);color:var(--ac);font-size:12px;font-family:inherit;margin-bottom:.5rem">'
-      +'<input type="text" placeholder="Testo della domanda..." value="'+esc(q.text)+'" oninput="updateLiveQText('+qi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:8px 12px;background:var(--cb);color:var(--tx);font-size:14px;font-family:inherit;margin-bottom:.75rem">'
-      +optsHtml
-      +'<div style="display:flex;align-items:center;gap:8px;margin-top:.5rem;flex-wrap:wrap">'
-      +'<span style="font-size:12px;color:var(--mu)">Tempo:</span>'
-      +'<select onchange="updateLiveQTime('+qi+',this.value)" style="border:1px solid var(--br);border-radius:6px;padding:4px 8px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
-      +'<option value="10" '+(q.time_limit===10?'selected':'')+'>10s</option>'
-      +'<option value="15" '+(q.time_limit===15?'selected':'')+'>15s</option>'
-      +'<option value="20" '+(q.time_limit===20?'selected':'')+'>20s</option>'
-      +'<option value="25" '+(q.time_limit===25?'selected':'')+'>25s</option>'
-      +'<option value="30" '+(q.time_limit===30?'selected':'')+'>30s</option>'
-      +'<option value="45" '+(q.time_limit===45?'selected':'')+'>45s</option>'
-      +'<option value="60" '+(q.time_limit===60?'selected':'')+'>60s</option>'
-      +'<option value="90" '+(q.time_limit===90?'selected':'')+'>90s</option>'
-      +'<option value="120" '+(q.time_limit===120?'selected':'')+'>120s</option>'
-      +'</select>'
-      +'<span style="font-size:12px;color:var(--mu);margin-left:6px">Punteggio:</span>'
-      +'<select onchange="updateLiveQMode('+qi+',this.value)" style="border:1px solid var(--br);border-radius:6px;padding:4px 8px;background:var(--cb);color:var(--tx);font-size:13px;font-family:inherit">'
-      +'<option value="speed" '+((!q.scoring_mode||q.scoring_mode==='speed')?'selected':'')+'>Velocita (max 1000 pt)</option>'
-      +'<option value="accuracy" '+(q.scoring_mode==='accuracy'?'selected':'')+'>Esattezza (500 pt fissi)</option>'
-      +'</select>'
-      +'</div></div>';
+      +'<div style="background:var(--cb);border:1px solid var(--br);border-radius:10px;padding:.875rem;margin-bottom:.75rem">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--mu);letter-spacing:.06em;text-transform:uppercase;margin-bottom:.75rem"><i class="ti ti-presentation"></i> Slide</div>'
+      +'<div onclick="selectBlockImage('+bi+')" style="border:2px dashed var(--br);border-radius:8px;cursor:pointer;height:80px;margin-bottom:.625rem;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center">'
+      +prevDiv+phDiv
+      +'</div>'
+      +'<input type="file" id="slide-file-'+bi+'" accept="image/jpeg,image/png" style="display:none" onchange="onBlockImageSelected('+bi+',this)">'
+      +rmBtn
+      +'<input type="text" id="slide-title-'+bi+'" placeholder="Titolo slide" value="'+esc(slide.title||'')+'" oninput="updateBlockSlideTitle('+bi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:6px;padding:6px 10px;background:var(--sf);color:var(--tx);font-size:13px;font-family:inherit;margin-bottom:.5rem">'
+      +'<input type="text" id="slide-text-'+bi+'" placeholder="Sottotitolo / testo (opzionale)" value="'+esc(slide.text||'')+'" oninput="updateBlockSlideText('+bi+',this.value)" style="width:100%;border:1px solid var(--br);border-radius:6px;padding:6px 10px;background:var(--sf);color:var(--tx);font-size:13px;font-family:inherit;margin-bottom:.625rem">'
+      +'<div style="font-size:11px;color:var(--mu);margin-bottom:5px">Colore sfondo (se nessuna immagine)</div>'
+      +'<div id="block-colors-'+bi+'">'+colorsHtml+'</div>'
+      +'</div>'
+      +renderBlockQuestion(bi,0)
+      +renderBlockQuestion(bi,1)
+      +'</div>';
   }).join('');
 }
 
-function updateLiveQText(qi, val){ lmState.editQuestions[qi].text = val; }
-function updateLiveOption(qi, oi, val){ lmState.editQuestions[qi].options[oi] = val; }
-function setLiveCorrect(qi, oi){ lmState.editQuestions[qi].correct = parseInt(oi); }
-function updateLiveQTime(qi, val){ lmState.editQuestions[qi].time_limit = parseInt(val); }
-function updateLiveQSection(qi, val){ lmState.editQuestions[qi].section_name = val; }
-function updateLiveQMode(qi, val){ lmState.editQuestions[qi].scoring_mode = val; }
-function addLiveQuestion(){
-  lmState.editQuestions.push({text:'', options:['','','',''], correct:0, time_limit:20, section_name:'', scoring_mode:'speed'});
-  renderLiveFormQuestions();
+function selectBlockImage(bi){ document.getElementById('slide-file-'+bi).click(); }
+function onBlockImageSelected(bi, input){
+  var file = input.files[0];
+  if(!file) return;
+  if(file.size > 5*1024*1024){ alert('Immagine troppo grande (max 5MB).'); input.value=''; return; }
+  lmState.editBlocks[bi].slide.imageFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    lmState.editBlocks[bi].slide.imagePreviewUrl = e.target.result;
+    var prev = document.getElementById('slide-prev-'+bi);
+    var ph = document.getElementById('slide-ph-'+bi);
+    var rm = document.getElementById('slide-rm-'+bi);
+    if(prev){ prev.style.backgroundImage='url('+e.target.result+')'; prev.style.backgroundSize='cover'; prev.style.backgroundPosition='center'; prev.style.display='block'; }
+    if(ph) ph.style.display='none';
+    if(rm) rm.style.display='inline-block';
+  };
+  reader.readAsDataURL(file);
 }
-function removeLiveQuestion(qi){
-  lmState.editQuestions.splice(qi, 1);
-  renderLiveFormQuestions();
+function removeBlockImage(bi){
+  lmState.editBlocks[bi].slide.imageFile = null;
+  lmState.editBlocks[bi].slide.imagePreviewUrl = null;
+  var prev = document.getElementById('slide-prev-'+bi);
+  var ph = document.getElementById('slide-ph-'+bi);
+  var rm = document.getElementById('slide-rm-'+bi);
+  if(prev){ prev.style.display='none'; prev.style.backgroundImage=''; }
+  if(ph) ph.style.display='flex';
+  if(rm) rm.style.display='none';
+  document.getElementById('slide-file-'+bi).value='';
+}
+function selectBlockSlideColor(bi, color){
+  lmState.editBlocks[bi].slide.color = color;
+  document.querySelectorAll('#block-colors-'+bi+' .bc-dot').forEach(function(dot){
+    dot.style.outline = dot.getAttribute('data-color')===color?'3px solid #fff':'none';
+    dot.style.outlineOffset='2px';
+  });
+}
+function updateBlockSlideTitle(bi, val){ lmState.editBlocks[bi].slide.title = val; }
+function updateBlockSlideText(bi, val){ lmState.editBlocks[bi].slide.text = val; }
+function updateBlockQText(bi, qi, val){ lmState.editBlocks[bi].questions[qi].text = val; }
+function updateBlockQOption(bi, qi, oi, val){ lmState.editBlocks[bi].questions[qi].options[oi] = val; }
+function setBlockQCorrect(bi, qi, oi){ lmState.editBlocks[bi].questions[qi].correct = parseInt(oi); }
+function updateBlockQTime(bi, qi, val){ lmState.editBlocks[bi].questions[qi].time_limit = parseInt(val); }
+function updateBlockQMode(bi, qi, val){ lmState.editBlocks[bi].questions[qi].scoring_mode = val; }
+function addLiveBlock(){
+  if(lmState.editBlocks.length >= 10){ alert('Massimo 10 blocchi per sessione.'); return; }
+  lmState.editBlocks.push(makeEmptyBlock());
+  renderLiveFormBlocks();
+  setTimeout(function(){
+    var cards = document.querySelectorAll('.live-block-card');
+    if(cards.length) cards[cards.length-1].scrollIntoView({behavior:'smooth'});
+  }, 80);
+}
+function removeLiveBlock(bi){
+  lmState.editBlocks.splice(bi, 1);
+  renderLiveFormBlocks();
 }
 
 async function saveLiveSession(){
   var title = document.getElementById('live-form-title').value.trim();
   if(!title){ alert('Inserisci un titolo per la sessione.'); return; }
-  var qs = lmState.editQuestions;
-  if(!qs.length){ alert('Aggiungi almeno una domanda.'); return; }
-  for(var i=0; i<qs.length; i++){
-    if(!qs[i].text.trim()){ alert('Domanda '+(i+1)+': inserisci il testo della domanda.'); return; }
-    var filled = qs[i].options.filter(function(o){ return o.trim(); });
-    if(filled.length < 2){ alert('Domanda '+(i+1)+': inserisci almeno 2 opzioni di risposta.'); return; }
+  var blocks = lmState.editBlocks;
+  if(!blocks.length){ alert('Aggiungi almeno un blocco.'); return; }
+  for(var i=0; i<blocks.length; i++){
+    for(var j=0; j<blocks[i].questions.length; j++){
+      var q = blocks[i].questions[j];
+      if(!q.text.trim()){ alert('Blocco '+(i+1)+', Domanda '+(j+1)+': inserisci il testo.'); return; }
+      if(q.options.filter(function(o){ return o.trim(); }).length < 2){ alert('Blocco '+(i+1)+', Domanda '+(j+1)+': inserisci almeno 2 opzioni.'); return; }
+    }
   }
-  showLoad('Salvataggio...');
+  showLoad('Salvataggio sessione...');
   try {
     var sessRes = await sb.from('live_sessions').insert({title:title, status:'draft'}).select().single();
     if(sessRes.error) throw sessRes.error;
-    var toInsert = qs.map(function(q,i){
-      return {session_id:sessRes.data.id, question_text:q.text, options:q.options, correct_index:q.correct, time_limit:q.time_limit, order_index:i, section_name:q.section_name||'', scoring_mode:q.scoring_mode||'speed'};
-    });
-    var qRes = await sb.from('live_questions').insert(toInsert);
-    if(qRes.error) throw qRes.error;
+    var sessId = sessRes.data.id;
+    var qOrderIndex = 0;
+    for(var bi=0; bi<blocks.length; bi++){
+      var block = blocks[bi];
+      var imageUrl = null;
+      if(block.slide.imageFile){
+        var fileName = 'live-slides/'+sessId+'-b'+bi+'-'+Date.now()+'.jpg';
+        var upRes = await sb.storage.from('Formarreda').upload(fileName, block.slide.imageFile, {upsert:true});
+        if(!upRes.error){
+          var pubRes = sb.storage.from('Formarreda').getPublicUrl(fileName);
+          imageUrl = pubRes.data.publicUrl;
+        }
+      }
+      var slRes = await sb.from('live_slides').insert({
+        session_id:sessId, order_index:bi,
+        title:block.slide.title||'', body_text:block.slide.text||'',
+        image_url:imageUrl, color:block.slide.color||'#C9A84C'
+      });
+      if(slRes.error) throw slRes.error;
+      var toInsert = block.questions.map(function(q, qi){
+        return {
+          session_id:sessId, question_text:q.text, options:q.options,
+          correct_index:q.correct, time_limit:q.time_limit,
+          order_index:qOrderIndex+qi, block_index:bi,
+          section_name:block.slide.title||('Blocco '+(bi+1)),
+          scoring_mode:q.scoring_mode||'speed'
+        };
+      });
+      var qRes = await sb.from('live_questions').insert(toInsert);
+      if(qRes.error) throw qRes.error;
+      qOrderIndex += block.questions.length;
+    }
     hideLoad();
     lmState.currentForm = null;
+    lmState.editBlocks = [];
     document.getElementById('live-form-title').value = '';
     await loadLiveSessions();
   } catch(e){ hideLoad(); alert('Errore nel salvataggio: '+e.message); }
