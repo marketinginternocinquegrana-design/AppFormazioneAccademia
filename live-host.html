@@ -169,6 +169,11 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8
           <div style="font-size:13px;font-weight:600;color:var(--mu);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em">Avanzamento</div>
           <div id="q-progress" style="color:var(--mu);font-size:13px">—</div>
         </div>
+        <!-- Blocks panel -->
+        <div class="card" id="blocks-panel" style="display:none">
+          <div style="font-size:13px;font-weight:600;color:var(--mu);margin-bottom:.75rem;text-transform:uppercase;letter-spacing:.04em"><i class="ti ti-layout-grid"></i> Blocchi sessione</div>
+          <div id="blocks-panel-body"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -250,6 +255,7 @@ var sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 var H = {
   session: null,
   questions: [],
+  slides: [],
   pollInterval: null,
   timerInterval: null,
   timeLeft: 0
@@ -273,12 +279,52 @@ async function init(){
     H.session = res.data[0];
     var qRes = await sb.from('live_questions').select('*').eq('session_id',H.session.id).order('order_index');
     H.questions = qRes.data || [];
+    var slRes = await sb.from('live_slides').select('*').eq('session_id',H.session.id).order('order_index');
+    H.slides = slRes.data || [];
     show('main-screen');
     renderSession();
+    renderBlocksPanel();
     startPoll();
   } catch(e){
     document.getElementById('loading-msg').textContent = 'Errore di connessione: '+e.message;
   }
+}
+
+function renderBlocksPanel(){
+  var panel = document.getElementById('blocks-panel');
+  var body = document.getElementById('blocks-panel-body');
+  if(!panel || !body || !H.slides.length){ if(panel) panel.style.display='none'; return; }
+  panel.style.display = 'block';
+  var curQ = H.questions[H.session.current_question_index];
+  var curBlock = curQ ? (curQ.block_index !== undefined ? curQ.block_index : -1) : -1;
+  body.innerHTML = H.slides.map(function(slide, bi){
+    var isActive = (bi === curBlock);
+    var hasImg = !!slide.image_url;
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:'+(isActive?'var(--ac-l)':'var(--sf)')+';border:1px solid '+(isActive?'var(--ac)':'var(--br)')+';border-radius:8px;margin-bottom:6px">'
+      +'<div>'
+      +'<div style="font-size:13px;font-weight:600">'+(slide.title||('Blocco '+(bi+1)))+'</div>'
+      +(slide.body_text?'<div style="font-size:11px;color:var(--mu)">'+esc(slide.body_text)+'</div>':'')
+      +'</div>'
+      +'<button class="btn" style="padding:5px 10px;font-size:12px;flex-shrink:0;margin-left:8px" onclick="showBlockSlide('+bi+')">'
+      +(hasImg?'<i class="ti ti-photo"></i>':'<i class="ti ti-presentation"></i>')+' Mostra</button>'
+      +'</div>';
+  }).join('');
+}
+
+async function showBlockSlide(bi){
+  var slide = H.slides[bi];
+  if(!slide) return;
+  var upd = {
+    display_mode:'slide',
+    slide_title: slide.title||'',
+    slide_text: slide.body_text||'',
+    slide_color: slide.color||'#C9A84C',
+    slide_image_url: slide.image_url||null
+  };
+  var res = await sb.from('live_sessions').update(upd).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  Object.assign(H.session, upd);
+  updateDisplayPill('slide');
 }
 
 function renderSession(){
@@ -470,7 +516,7 @@ async function pollSession(){
     var changed = newData.current_question_index !== H.session.current_question_index;
     H.session = newData;
     if(newData.status==='ended'){ clearInterval(H.pollInterval); show('no-live-screen'); return; }
-    if(changed) renderSession();
+    if(changed){ renderSession(); renderBlocksPanel(); }
     if(newData.current_question_index>=0){ refreshStats(); refreshLeaderboard(); }
     updateDisplayPill(newData.display_mode||'question');
   } catch(e){}
