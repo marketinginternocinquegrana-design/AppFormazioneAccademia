@@ -176,30 +176,53 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8
 
 <!-- SLIDE MODAL -->
 <div id="slide-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:1rem">
-  <div style="background:var(--cb);border:1px solid var(--br);border-radius:16px;width:100%;max-width:460px;padding:1.5rem">
+  <div style="background:var(--cb);border:1px solid var(--br);border-radius:16px;width:100%;max-width:500px;max-height:90vh;overflow-y:auto;padding:1.5rem">
     <div style="font-weight:700;font-size:16px;margin-bottom:1.25rem">Configura Slide Sezione</div>
-    <div style="margin-bottom:.875rem">
-      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Titolo (grande, a schermo)</label>
-      <input type="text" id="slide-title-input" placeholder="Es: Gestire le Obiezioni" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit">
+
+    <!-- Immagine -->
+    <div style="margin-bottom:1rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:6px">Immagine di sfondo (JPEG/PNG)</label>
+      <div id="slide-img-dropzone" onclick="document.getElementById('slide-img-input').click()"
+        style="border:2px dashed var(--br);border-radius:10px;padding:1.25rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--sf);min-height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;position:relative;overflow:hidden">
+        <div id="slide-img-preview" style="display:none;position:absolute;inset:0;background-size:cover;background-position:center;border-radius:8px"></div>
+        <div id="slide-img-placeholder" style="position:relative;z-index:1">
+          <i class="ti ti-photo" style="font-size:28px;color:var(--mu)"></i>
+          <div style="font-size:13px;color:var(--mu);margin-top:4px">Clicca per scegliere un&#39;immagine</div>
+          <div style="font-size:11px;color:var(--mu);opacity:.7">JPEG, PNG — max 5MB</div>
+        </div>
+        <div id="slide-img-name" style="display:none;position:relative;z-index:1;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 10px;border-radius:99px"></div>
+      </div>
+      <input type="file" id="slide-img-input" accept="image/jpeg,image/png,image/jpg" style="display:none" onchange="onSlideImageSelected(this)">
+      <button id="slide-img-remove" onclick="removeSlideImage()" style="display:none;margin-top:6px;background:none;border:none;color:var(--dng);font-size:12px;cursor:pointer"><i class="ti ti-x"></i> Rimuovi immagine</button>
     </div>
-    <div style="margin-bottom:.875rem">
-      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Sottotitolo / concetto chiave</label>
-      <textarea id="slide-text-input" rows="3" placeholder="Es: Come trasformare il NO in un SI" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit;resize:vertical"></textarea>
-    </div>
-    <div style="margin-bottom:1.25rem">
-      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:8px">Colore sfondo</label>
+
+    <!-- Sfondo colore (fallback se no immagine) -->
+    <div id="slide-color-section" style="margin-bottom:.875rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:8px">Colore sfondo (usato se nessuna immagine)</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <div class="slide-color-dot" onclick="selectSlideColor('#C9A84C')" data-color="#C9A84C" style="width:34px;height:34px;border-radius:50%;background:#C9A84C;cursor:pointer"></div>
-        <div class="slide-color-dot" onclick="selectSlideColor('#E24B4A')" data-color="#E24B4A" style="width:34px;height:34px;border-radius:50%;background:#E24B4A;cursor:pointer"></div>
-        <div class="slide-color-dot" onclick="selectSlideColor('#4a9fd4')" data-color="#4a9fd4" style="width:34px;height:34px;border-radius:50%;background:#4a9fd4;cursor:pointer"></div>
-        <div class="slide-color-dot" onclick="selectSlideColor('#4caf7d')" data-color="#4caf7d" style="width:34px;height:34px;border-radius:50%;background:#4caf7d;cursor:pointer"></div>
-        <div class="slide-color-dot" onclick="selectSlideColor('#9c5cbf')" data-color="#9c5cbf" style="width:34px;height:34px;border-radius:50%;background:#9c5cbf;cursor:pointer"></div>
-        <div class="slide-color-dot" onclick="selectSlideColor('#d4921a')" data-color="#d4921a" style="width:34px;height:34px;border-radius:50%;background:#d4921a;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#C9A84C')" data-color="#C9A84C" style="width:30px;height:30px;border-radius:50%;background:#C9A84C;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#E24B4A')" data-color="#E24B4A" style="width:30px;height:30px;border-radius:50%;background:#E24B4A;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#4a9fd4')" data-color="#4a9fd4" style="width:30px;height:30px;border-radius:50%;background:#4a9fd4;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#4caf7d')" data-color="#4caf7d" style="width:30px;height:30px;border-radius:50%;background:#4caf7d;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#9c5cbf')" data-color="#9c5cbf" style="width:30px;height:30px;border-radius:50%;background:#9c5cbf;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#d4921a')" data-color="#d4921a" style="width:30px;height:30px;border-radius:50%;background:#d4921a;cursor:pointer"></div>
       </div>
     </div>
+
+    <!-- Testi overlay -->
+    <div style="margin-bottom:.75rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Titolo (testo sopra l&#39;immagine)</label>
+      <input type="text" id="slide-title-input" placeholder="Es: Gestire le Obiezioni" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit">
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Sottotitolo (opzionale)</label>
+      <textarea id="slide-text-input" rows="2" placeholder="Es: Come trasformare il NO in un SI" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    </div>
+
+    <div id="slide-upload-status" style="display:none;font-size:13px;color:var(--mu);margin-bottom:.75rem;text-align:center"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn" onclick="closeSlideModal()">Annulla</button>
-      <button class="btn pr" onclick="sendSlideToScreen()"><i class="ti ti-presentation"></i> Mostra a schermo</button>
+      <button class="btn pr" id="btn-send-slide" onclick="sendSlideToScreen()"><i class="ti ti-presentation"></i> Mostra a schermo</button>
     </div>
   </div>
 </div>
@@ -469,9 +492,17 @@ function updateDisplayPill(mode){
 
 // ── Slide editor ──
 var selectedSlideColor = '#C9A84C';
+var pendingSlideFile = null;
 
 function openSlideEditor(){
+  pendingSlideFile = null;
   document.getElementById('slide-modal').style.display='flex';
+  document.getElementById('slide-img-preview').style.display='none';
+  document.getElementById('slide-img-placeholder').style.display='block';
+  document.getElementById('slide-img-name').style.display='none';
+  document.getElementById('slide-img-remove').style.display='none';
+  document.getElementById('slide-upload-status').style.display='none';
+  document.getElementById('slide-img-input').value='';
   selectSlideColor(selectedSlideColor);
 }
 function closeSlideModal(){
@@ -484,14 +515,63 @@ function selectSlideColor(color){
     el.style.outlineOffset = '2px';
   });
 }
+function onSlideImageSelected(input){
+  var file = input.files[0];
+  if(!file) return;
+  if(file.size > 5*1024*1024){ alert('Immagine troppo grande (max 5MB).'); input.value=''; return; }
+  pendingSlideFile = file;
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var preview = document.getElementById('slide-img-preview');
+    preview.style.backgroundImage = 'url('+e.target.result+')';
+    preview.style.display = 'block';
+    document.getElementById('slide-img-placeholder').style.display = 'none';
+    document.getElementById('slide-img-name').textContent = file.name;
+    document.getElementById('slide-img-name').style.display = 'block';
+    document.getElementById('slide-img-remove').style.display = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+function removeSlideImage(){
+  pendingSlideFile = null;
+  document.getElementById('slide-img-preview').style.display='none';
+  document.getElementById('slide-img-placeholder').style.display='block';
+  document.getElementById('slide-img-name').style.display='none';
+  document.getElementById('slide-img-remove').style.display='none';
+  document.getElementById('slide-img-input').value='';
+}
 async function sendSlideToScreen(){
   var title = (document.getElementById('slide-title-input').value||'').trim();
   var text  = (document.getElementById('slide-text-input').value||'').trim();
-  if(!title){ alert('Inserisci un titolo per la slide.'); return; }
+  var statusEl = document.getElementById('slide-upload-status');
+  var btnSend = document.getElementById('btn-send-slide');
+  var imageUrl = null;
+
+  if(pendingSlideFile){
+    statusEl.style.display='block';
+    statusEl.textContent = 'Caricamento immagine in corso...';
+    btnSend.disabled = true;
+    var fileName = 'live-slides/' + Date.now() + '-' + pendingSlideFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    var uploadRes = await sb.storage.from('Formarreda').upload(fileName, pendingSlideFile, {upsert:true});
+    if(uploadRes.error){
+      statusEl.textContent = 'Errore upload: ' + uploadRes.error.message;
+      btnSend.disabled = false;
+      return;
+    }
+    var urlRes = sb.storage.from('Formarreda').getPublicUrl(fileName);
+    imageUrl = urlRes.data.publicUrl;
+    statusEl.textContent = 'Immagine caricata!';
+  }
+
   var res = await sb.from('live_sessions').update({
-    display_mode:'slide', slide_title:title, slide_text:text, slide_color:selectedSlideColor
+    display_mode:'slide',
+    slide_title: title,
+    slide_text:  text,
+    slide_color: selectedSlideColor,
+    slide_image_url: imageUrl
   }).eq('id',H.session.id);
-  if(res.error){ alert('Errore: '+res.error.message); return; }
+  if(res.error){ alert('Errore: '+res.error.message); btnSend.disabled=false; return; }
+  btnSend.disabled = false;
   H.session.display_mode='slide';
   closeSlideModal();
   updateDisplayPill('slide');
