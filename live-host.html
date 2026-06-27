@@ -112,6 +112,16 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8
       </div>
     </div>
 
+    <!-- DISPLAY CONTROLS -->
+    <div style="background:var(--sf);border:1px solid var(--br);border-radius:10px;padding:.625rem 1rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:700;color:var(--mu);letter-spacing:.06em;text-transform:uppercase;margin-right:2px">Display</span>
+      <button class="btn" style="padding:6px 14px;font-size:13px" onclick="openSlideEditor()"><i class="ti ti-presentation"></i> Slide</button>
+      <button class="btn" style="padding:6px 14px;font-size:13px" onclick="showLeaderboardScreen()"><i class="ti ti-trophy"></i> Classifica</button>
+      <button class="btn" style="padding:6px 14px;font-size:13px" onclick="openPauseDialog()"><i class="ti ti-player-pause"></i> Pausa</button>
+      <button class="btn pr" style="padding:6px 14px;font-size:13px;display:none" id="btn-resume" onclick="resumeQuestion()"><i class="ti ti-player-play"></i> Riprendi</button>
+      <div id="display-mode-pill" style="margin-left:auto;font-size:12px;padding:4px 12px;border-radius:99px;background:var(--cb);border:1px solid var(--br);color:var(--mu)">&#9654; Domanda</div>
+    </div>
+
     <div style="display:grid;grid-template-columns:2fr 1fr;gap:1.25rem">
 
       <!-- LEFT: question + stats -->
@@ -160,6 +170,51 @@ body{font-family:system-ui,-apple-system,sans-serif;background:#0d0f11;color:#e8
           <div id="q-progress" style="color:var(--mu);font-size:13px">—</div>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLIDE MODAL -->
+<div id="slide-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--cb);border:1px solid var(--br);border-radius:16px;width:100%;max-width:460px;padding:1.5rem">
+    <div style="font-weight:700;font-size:16px;margin-bottom:1.25rem">Configura Slide Sezione</div>
+    <div style="margin-bottom:.875rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Titolo (grande, a schermo)</label>
+      <input type="text" id="slide-title-input" placeholder="Es: Gestire le Obiezioni" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit">
+    </div>
+    <div style="margin-bottom:.875rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:4px">Sottotitolo / concetto chiave</label>
+      <textarea id="slide-text-input" rows="3" placeholder="Es: Come trasformare il NO in un SI" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    </div>
+    <div style="margin-bottom:1.25rem">
+      <label style="font-size:12px;color:var(--mu);display:block;margin-bottom:8px">Colore sfondo</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <div class="slide-color-dot" onclick="selectSlideColor('#C9A84C')" data-color="#C9A84C" style="width:34px;height:34px;border-radius:50%;background:#C9A84C;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#E24B4A')" data-color="#E24B4A" style="width:34px;height:34px;border-radius:50%;background:#E24B4A;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#4a9fd4')" data-color="#4a9fd4" style="width:34px;height:34px;border-radius:50%;background:#4a9fd4;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#4caf7d')" data-color="#4caf7d" style="width:34px;height:34px;border-radius:50%;background:#4caf7d;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#9c5cbf')" data-color="#9c5cbf" style="width:34px;height:34px;border-radius:50%;background:#9c5cbf;cursor:pointer"></div>
+        <div class="slide-color-dot" onclick="selectSlideColor('#d4921a')" data-color="#d4921a" style="width:34px;height:34px;border-radius:50%;background:#d4921a;cursor:pointer"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closeSlideModal()">Annulla</button>
+      <button class="btn pr" onclick="sendSlideToScreen()"><i class="ti ti-presentation"></i> Mostra a schermo</button>
+    </div>
+  </div>
+</div>
+
+<!-- PAUSE MODAL -->
+<div id="pause-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:var(--cb);border:1px solid var(--br);border-radius:16px;width:100%;max-width:440px;padding:1.5rem">
+    <div style="font-weight:700;font-size:16px;margin-bottom:.5rem">Pausa Discussione</div>
+    <div style="font-size:13px;color:var(--mu);margin-bottom:1.25rem">Il testo qui sotto appare sullo smartphone degli studenti.</div>
+    <div style="margin-bottom:1.25rem">
+      <textarea id="pause-prompt-input" rows="4" placeholder="Es: Perche hai scelto quella risposta? Chi vuole spiegare la sua scelta al gruppo?" style="width:100%;border:1px solid var(--br);border-radius:7px;padding:9px 12px;background:var(--sf);color:var(--tx);font-size:14px;font-family:inherit;resize:vertical"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" onclick="closePauseModal()">Annulla</button>
+      <button class="btn pr" onclick="startPause()"><i class="ti ti-player-pause"></i> Metti in pausa</button>
     </div>
   </div>
 </div>
@@ -261,6 +316,13 @@ function renderCurrentQuestion(){
   var timeLeft = Math.max(0, q.time_limit - Math.floor(elapsed));
   H.timeLeft = timeLeft;
 
+  var sectionBadge = q.section_name
+    ? '<span style="font-size:11px;background:var(--ac-l);color:var(--ac);padding:3px 10px;border-radius:99px;border:1px solid rgba(201,168,76,.3);margin-bottom:.75rem;display:inline-block">'+esc(q.section_name)+'</span>'
+    : '';
+  var modeBadge = (q.scoring_mode === 'accuracy')
+    ? '<span style="font-size:11px;background:rgba(76,175,125,.15);color:var(--suc);padding:3px 8px;border-radius:99px;border:1px solid rgba(76,175,125,.3)"><i class="ti ti-target-arrow"></i> Esattezza</span>'
+    : '<span style="font-size:11px;background:var(--dng-l);color:var(--dng);padding:3px 8px;border-radius:99px;border:1px solid rgba(226,75,74,.3)"><i class="ti ti-bolt"></i> Velocita</span>';
+
   var optsHtml = opts.map(function(o,i){
     var ltr = String.fromCharCode(65+i);
     var isCorrect = i===q.correct_index;
@@ -273,7 +335,8 @@ function renderCurrentQuestion(){
 
   var timerPct = timeLeft/q.time_limit*100;
   document.getElementById('question-area').innerHTML =
-    '<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:1.25rem">'
+    (sectionBadge?'<div style="margin-bottom:.5rem">'+sectionBadge+' '+modeBadge+'</div>':'')
+    +'<div style="display:flex;align-items:flex-start;gap:16px;margin-bottom:1.25rem">'
     +'<div class="timer-ring">'
     +'<svg viewBox="0 0 80 80" width="80" height="80">'
     +'<circle class="tr-bg" cx="40" cy="40" r="30"/>'
@@ -386,7 +449,86 @@ async function pollSession(){
     if(newData.status==='ended'){ clearInterval(H.pollInterval); show('no-live-screen'); return; }
     if(changed) renderSession();
     if(newData.current_question_index>=0){ refreshStats(); refreshLeaderboard(); }
+    updateDisplayPill(newData.display_mode||'question');
   } catch(e){}
+}
+
+function updateDisplayPill(mode){
+  var pill = document.getElementById('display-mode-pill');
+  var resume = document.getElementById('btn-resume');
+  if(!pill) return;
+  var labels = {
+    'question': '&#9654; Domanda',
+    'slide':    '&#128253; Slide in corso',
+    'leaderboard': '&#127942; Classifica',
+    'paused':   '&#9208; Pausa discussione'
+  };
+  pill.innerHTML = labels[mode]||'';
+  if(resume) resume.style.display = (mode!=='question')?'inline-flex':'none';
+}
+
+// ── Slide editor ──
+var selectedSlideColor = '#C9A84C';
+
+function openSlideEditor(){
+  document.getElementById('slide-modal').style.display='flex';
+  selectSlideColor(selectedSlideColor);
+}
+function closeSlideModal(){
+  document.getElementById('slide-modal').style.display='none';
+}
+function selectSlideColor(color){
+  selectedSlideColor = color;
+  document.querySelectorAll('.slide-color-dot').forEach(function(el){
+    el.style.outline = (el.getAttribute('data-color')===color)?'3px solid #fff':'none';
+    el.style.outlineOffset = '2px';
+  });
+}
+async function sendSlideToScreen(){
+  var title = (document.getElementById('slide-title-input').value||'').trim();
+  var text  = (document.getElementById('slide-text-input').value||'').trim();
+  if(!title){ alert('Inserisci un titolo per la slide.'); return; }
+  var res = await sb.from('live_sessions').update({
+    display_mode:'slide', slide_title:title, slide_text:text, slide_color:selectedSlideColor
+  }).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  H.session.display_mode='slide';
+  closeSlideModal();
+  updateDisplayPill('slide');
+}
+
+// ── Pause dialog ──
+function openPauseDialog(){
+  document.getElementById('pause-modal').style.display='flex';
+}
+function closePauseModal(){
+  document.getElementById('pause-modal').style.display='none';
+}
+async function startPause(){
+  var prompt = (document.getElementById('pause-prompt-input').value||'').trim();
+  var res = await sb.from('live_sessions').update({
+    display_mode:'paused', pause_prompt:prompt
+  }).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  H.session.display_mode='paused';
+  closePauseModal();
+  updateDisplayPill('paused');
+}
+
+// ── Classifica a schermo ──
+async function showLeaderboardScreen(){
+  var res = await sb.from('live_sessions').update({display_mode:'leaderboard'}).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  H.session.display_mode='leaderboard';
+  updateDisplayPill('leaderboard');
+}
+
+// ── Riprendi domanda ──
+async function resumeQuestion(){
+  var res = await sb.from('live_sessions').update({display_mode:'question'}).eq('id',H.session.id);
+  if(res.error){ alert('Errore: '+res.error.message); return; }
+  H.session.display_mode='question';
+  updateDisplayPill('question');
 }
 
 async function startFirstQuestion(){
